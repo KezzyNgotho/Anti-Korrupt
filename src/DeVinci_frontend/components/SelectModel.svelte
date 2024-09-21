@@ -1,77 +1,138 @@
 <script>
-  import logo from "../../../public/image8.png";
-  import hero from "../../../public/image9.png";
-  import vr from "../../../public/vr2.png"
-  import eye from "../../../public/image6.png"
-  // import '../index.scss';
-    // import { error } from 'console';
-    //import {goto} from ''
- // import { authenticateWithInternetIdentity } from '../routes/services/auth';
+  import { onMount } from 'svelte';
+  import logo from '../../../public/image8.png';
 
-  let isMenuOpen = false;
+  // State Variables
+  let activeSection = 'courses'; // Default section
+  let seeAll = false; // Toggle 'See All' visibility
+  let activeTab = 'overview'; // Active tab in Rewards section
+  let selectedReward = ''; // Selected reward for redemption
+  let userTokens = 50; // Example token count
+  let quizTimer = 60; // Quiz timer in seconds
 
-  function toggleMenu() {
-    isMenuOpen = !isMenuOpen;
-  }
-
-  function handleSignUpClick() {
-    goto('/experiences');
-  }
-
-  async function authenticateWithInternetIdentity() {
-    // Your actual authentication logic here
-    return new Promise((resolve) => {
-      setTimeout(resolve, 1000); // Simulate a delay
-    });
-  }
-
-  const items = [
-    {
-      id: "item1",
-      title: "Enhanced Natural Language Processing",
-      description:
-        "Experience the power of advanced LLM that understands and generates human-like text. Elevate your conversational AI and content creation.",
-      imgSrc: vr,
-      progress: "50%",
-    },
-    {
-      id: "item2",
-      title: "Industry-specific Models",
-      description:
-        "Our LLMs are tailored for various industries like healthcare, finance, and legal, providing specialized insights and automation.",
-      imgSrc: eye,
-       progress: "5%"
-    },
-    {
-      id: "item3",
-      title: "Seamless Integration",
-      description:
-        "Integrate LLM technology effortlessly with your existing platforms to enhance user experience, productivity, and creativity.",
-      imgSrc: logo,
-       progress: "0%",
-    },
+  // Quizzes Data
+  let quizzes = [
+    { title: "AI Basics Quiz", description: "Test your knowledge of AI fundamentals.", questions: 10 },
+    { title: "Blockchain 101 Quiz", description: "How well do you know blockchain technology?", questions: 12 },
+    { title: "DeFi & Fintech Quiz", description: "Assess your understanding of decentralized finance and fintech.", questions: 8 }
   ];
+
+  // User Progress Data
+  let userProgress = {
+    'introduction-to-ai-and-blockchain': 0,
+    'advanced-ai-techniques': 70,
+    'blockchain-development-essentials': 45,
+    'defi-and-fintech': 30,
+    'ai-ethics-and-governance': 10
+  };
+
+  // Recent Tokens Data
+  let recentToken1 = 'Completed AI Basics Quiz: +10 tokens';
+  let recentToken2 = 'Completed Blockchain 101 Quiz: +12 tokens';
+  let recentToken3 = 'Completed DeFi & Fintech Quiz: +8 tokens';
+
+  // Rewards Data
+  let reward1 = 'Free Course Access';
+  let reward2 = 'Exclusive NFT Badge';
+  let reward3 = 'One-on-One Mentor Session';
+
+  // Chat History Data
+  let chatHistory = [
+    { date: '2024-09-01', topic: 'Customer Support' },
+    { date: '2024-08-15', topic: 'Learning Assistance' }
+  ];
+
+  // Functions
+
+  // Handle Redemption Form Submission
+  const handleRedemption = (event) => {
+    event.preventDefault();
+    if (selectedReward) {
+      // Implement redemption logic here
+      console.log(`Redeeming ${selectedReward}`);
+      // Optionally, update user tokens or show a success message
+    } else {
+      console.error('Please select a reward.');
+      // Optionally, show an error message to the user
+    }
+  };
+
+  // Connect Wallet Function
+  const connectWallet = () => {
+    // Implement wallet connection logic here
+    console.log('Connecting wallet...');
+    // For example, integrate with Web3 or other wallet providers
+  };
+
+  // Handle Tab Change in Rewards Section
+  const handleTabChange = (tab) => {
+    activeTab = tab;
+  };
+
+  // Handle Navigation Click
+  function handleNavClick(section) {
+    activeSection = section;
+    const element = document.getElementById(section);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Start Learning a Course
+  function startLearning(courseId) {
+    activeSection = 'chatgpt-interface';
+    userTokens += 10; // Reward for starting the course
+    const element = document.getElementById('chatgpt-interface');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // Start a Quiz
+  function startQuiz(quiz) {
+    let startTime = Date.now();
+    // Simulate quiz duration with a timeout
+    setTimeout(() => {
+      let endTime = Date.now();
+      let timeTaken = (endTime - startTime) / 1000; // Time in seconds
+      if (timeTaken <= quizTimer) {
+        userTokens += 10; // Bonus for completing within time
+      }
+      console.log(`Quiz completed in ${timeTaken} seconds. Tokens earned: ${userTokens}`);
+      // Optionally, update recent tokens or show a success message
+    }, quizTimer * 1000);
+  }
+
+  // Toggle 'See All' Courses
+  function toggleSeeAll() {
+    seeAll = !seeAll;
+  }
+
+  // Load Chat Function (for Chat History)
+  function loadChat(date, topic) {
+    // Implement chat loading logic here
+    console.log(`Loading chat for ${topic} on ${date}`);
+    // For example, fetch chat history from a server or display existing messages
+  }
+
+  // On Mount
+  onMount(() => {
+    handleNavClick('courses'); // Set the default section on page load
+  });
 </script>
 
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-/>
-
 <!-- Navbar -->
-<header
-  class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-4 px-6 flex flex-col md:flex-row items-center justify-between shadow-lg fixed top-0 w-full z-50"
->
-  <div class="flex items-center space-x-4 w-full md:w-auto">
-    <a use:link href="/" class="flex items-center space-x-2">
-      <img src={logo} alt="LLM Logo" class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300" />
+<header class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-4 px-6 flex flex-col md:flex-row items-center justify-between shadow-lg fixed top-0 w-full z-50">
+  <div class="flex items-center space-x-4">
+    <a href="/" class="flex items-center space-x-2">
+      <img src={logo} alt="LLM Logo" class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300" />
       <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">LLMVerse</h1>
     </a>
   </div>
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ['Courses', 'Chatbots','Quizzes', 'Contact'] as link}
+    {#each ['Courses', 'Chatbots', 'Quizzes', 'Rewards', 'Contact'] as link}
       <a
         on:click={() => handleNavClick(link.toLowerCase())}
         class="text-white hover:text-blue-300 border-b-2 border-transparent hover:border-white px-4 py-2 transition-all duration-300 cursor-pointer"
@@ -89,178 +150,349 @@
       Get Started 🚀
     </button>
     <button 
-      on:click={() => handleNavClick('partner')}
+      on:click={() => handleNavClick('rewards')}
       class="bg-transparent border border-blue-200 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-300 hover:text-[#023e8a] transition-all duration-300 transform hover:scale-105">
-      Partner with Us 🤝
+      Rewards 🤝
     </button>
   </div>
 </header>
 
-<!-- Hero Section -->
-<section
-  class="hero min-h-screen flex items-center justify-center bg-[#0f535c] text-white"
->
-  <div
-    class="container mx-auto flex flex-col md:flex-row items-center justify-between p-8"
-  >
-    <!-- Left Side: Text Content -->
-    <div class="text-content md:w-1/2 text-center md:text-left">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-        Welcome to <span class="text-[#E1AD01]"
-        >Anti-Corrupt AI </span
-      >Expand your knowledge on corruption using 
-      </h1>
-      <p class="text-lg md:text-xl mb-6">
-        Leveraging the power of blockchain and AI to enhance learning and create
-        an overall corruption free environment all over the world.
-      </p>
-      <!-- Styled Buttons -->
-      <div class="flex justify-center md:justify-start space-x-4">
-        <button 
-          on:click={handleLoginClick}
-          class="bg-[#00C4CC] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105">
-          Go to learning
-        </button>
-      </div>
-    </div>
-
-    <!-- Right Side: Image or Graphic -->
-    <div class="image-content md:w-1/2 mt-8 md:mt-0">
-      <img src={logo} alt="LLM Hero Graphic" class="w-150 h-auto rounded-lg" />
-      <img src={hero} alt="LLM Hero Graphic" class="w-150 h-auto rounded-lg" />
-    </div>
-  </div>
-</section>
-
-<!-- Features Section -->
-<section
-  id="features"
-  class="section-padding bg-gradient-to-r from-[#38a0ac] to-white py-16"
->
-  <div class="container mx-auto text-center">
-    <h2 class="text-4xl font-bold text-[#0f535c] mb-8">Features</h2>
-    <p class="text-gray-600 mb-12 max-w-3xl mx-auto">
-      Discover the cutting-edge capabilities of LLMVerse. Explore
-      industry-specific models, seamless integration, and unmatched language
-      understanding.
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {#each items as { title, description }}
-        <div
-          class="bg-[#0f535c] p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
-        >
-          <h3 class="text-xl font-semibold text-[#E1AD01] mb-4">{title}</h3>
-          <!-- Removed the hyphen after the color code -->
-          <p class="text-gray-800">{description}</p>
-        </div>
-      {/each}
-    </div>
-  </div>
-</section>
-
-<!-- Courses Section -->
-<section
-  id="courses"
-  class="section-padding bg-gradient-to-r from-[#38a0ac] to-[#ffff]"
->
-  <div class="container mx-auto text-center">
-    <h2 class="text-4xl font-bold text-[#E1AD01] mb-8">Courses</h2>
-    <p class="text-gray-900 mb-12 max-w-2xl mx-auto">
-      Connect with various platforms and enhance the AI-driven features of your products. LLMVerse fits into your existing workflow effortlessly.
-    </p>
-
-    <!-- Courses Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {#each items as { imgSrc, title, description, progress }}
-        <div
-          class="bg-[#0f535c] p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
-        >
-          <img
-            src={imgSrc}
-            alt="Integration"
-            class="w-full h-48 object-cover rounded-md mb-4"
-          />
-          <h3 class="text-xl font-semibold text-[#E1AD01] mb-2">{title}</h3>
-          <p class="text-gray-900 mb-4">{description}</p>
-          
-          <!-- Progress Bar -->
-          <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
-            <div class="bg-[#E1AD01] h-4 rounded-full" style="width: {progress};"></div>
-          </div>
-          <p class="text-white">{progress}</p>
-        </div>
-      {/each}
-    </div>
-  </div>
-</section>
-
-<!-- Licensing Section -->
-<section
-  id="licensing"
-  class="section-padding bg-gradient-to-r from-[#38a0ac] to-[#fff] py-16"
->
-  <div class="container mx-auto text-center">
-    <h2 class="text-4xl font-bold text-[#023e8a] mb-8">Licensing Opportunities</h2>
-    <p class="text-gray-600 mb-12 max-w-2xl mx-auto">
-      Explore licensing options to bring LLMVerse's advanced capabilities to your organization. Contact us to discuss tailored solutions.
-    </p>
-  </div>
-</section>
-
-  <!-- Contact Section -->
-   <div>
-  <section id="contact" class="py-16 bg-gray-50" class:hidden={activeSection !== 'contact'}>
+<!-- Main Content -->
+<main class="pt-20"> <!-- Add padding-top to offset the fixed navbar -->
+  
+  <!-- Courses Section -->
+  <section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
     <div class="container mx-auto text-center">
-      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Get in Touch</h2>
-      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">If you have any questions or need assistance, feel free to reach out to us!</p>
-      <form class="max-w-2xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div>
-            <label for="name" class="block text-left font-semibold mb-2">Name</label>
-            <input type="text" id="name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Your Name">
+      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Available Courses</h2>
+      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+        Explore our curated courses designed to deepen your understanding of AI and blockchain technologies.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {#each [
+          { id: 'introduction-to-ai-and-blockchain', title: 'Introduction to AI and Blockchain', description: 'Learn the fundamentals of AI and blockchain technology, including their applications and impact on various industries.' },
+          { id: 'advanced-ai-techniques', title: 'Advanced AI Techniques', description: 'Dive deeper into advanced AI techniques, including machine learning, deep learning, and neural networks.' },
+          { id: 'blockchain-development-essentials', title: 'Blockchain Development Essentials', description: 'Understand the essentials of blockchain development, including smart contracts, decentralized apps (DApps), and blockchain architecture.' }
+        ] as { id, title, description }}
+          <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
+            <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
+            <p class="text-gray-800 mb-4">{description}</p>
+            <div class="h-2 bg-gray-200 rounded-full mb-4">
+              <div class="h-full bg-[#023e8a] rounded-full" style="width: {userProgress[id] || 0}%"></div>
+            </div>
+            <div class="flex justify-center space-x-4">
+              <button
+                on:click={() => startLearning(id)}
+                class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+                Start Learning
+              </button>
+              <button
+                class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105">
+                View Details
+              </button>
+            </div>
           </div>
-          <div>
-            <label for="email" class="block text-left font-semibold mb-2">Email</label>
-            <input type="email" id="email" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Your Email">
+        {/each}
+
+        <!-- "See All" button -->
+        <div class="col-span-full text-center mt-6">
+          <button on:click={toggleSeeAll} class="text-[#023e8a] hover:underline">
+            {seeAll ? 'Show Less' : 'See All'}
+          </button>
+        </div>
+      </div>
+
+      {#if seeAll}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+          {#each [
+            { id: 'defi-and-fintech', title: 'DeFi and Fintech', description: 'Explore the decentralized finance (DeFi) space and the future of fintech with blockchain.' },
+            { id: 'ai-ethics-and-governance', title: 'AI Ethics and Governance', description: 'Understand the ethical implications of AI and how governance frameworks are shaping its development.' }
+          ] as { id, title, description }}
+            <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
+              <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
+              <p class="text-gray-800 mb-4">{description}</p>
+              <div class="h-2 bg-gray-200 rounded-full mb-4">
+                <div class="h-full bg-[#023e8a] rounded-full" style="width: {userProgress[id] || 0}%"></div>
+              </div>
+              <div class="flex justify-center space-x-4">
+                <button
+                  on:click={() => startLearning(id)}
+                  class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+                  Start Learning
+                </button>
+                <button
+                  class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105">
+                  View Details
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+
+    <!-- Chatbots Section -->
+    <section id="chatgpt-interface" class="py-16 bg-gray-100" class:hidden={activeSection !== 'chatbots'}>
+      <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
+        <!-- Sidebar for Chat History -->
+        <aside class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8">
+          <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
+          <div class="overflow-y-auto max-h-[500px]">
+            <ul class="space-y-4">
+              {#each chatHistory as { date, topic }}
+                <li>
+                  <button 
+                    class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
+                    on:click={() => loadChat(date, topic)}
+                  >
+                    <div class="font-semibold text-gray-900">{topic}</div>
+                    <div class="text-sm text-gray-600">{date}</div>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        </aside>
+
+        <!-- Main Chat Interface -->
+        <div class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]">
+          <!-- Chat Window -->
+          <div id="chat-window" class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
+            <!-- Example Chat Messages -->
+            <div class="mb-4">
+              <div class="text-sm text-gray-600 mb-1">User:</div>
+              <div class="bg-gray-200 p-2 rounded-lg">Hello, how can I use the chatbot?</div>
+            </div>
+            <div class="mb-4">
+              <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
+              <div class="bg-[#E1AD01] text-white p-2 rounded-lg">You can ask me anything, and I'll provide the best possible answers!</div>
+            </div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="flex items-center border-t border-gray-300 pt-4">
+            <input 
+              type="text" 
+              id="chat-input" 
+              class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01]" 
+              placeholder="Type your message here..."
+            >
+            <button 
+              id="send-btn" 
+              class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300">
+              Send
+            </button>
           </div>
         </div>
-        <div>
-          <label for="message" class="block text-left font-semibold mb-2">Message</label>
-          <textarea id="message" rows="4" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Your Message"></textarea>
+      </div>
+    </section>
+
+    <!-- Quizzes Section -->
+    <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]" class:hidden={activeSection !== 'quizzes'}>
+      <div class="container mx-auto text-center">
+        <h2 class="text-4xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+        <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+          Test your knowledge with our fun quizzes and earn tokens for your achievements.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {#each quizzes as quiz}
+            <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
+              <h3 class="text-xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
+              <p class="text-gray-700 mb-4">{quiz.description}</p>
+              <div class="flex justify-center">
+                <button
+                  on:click={() => startQuiz(quiz)}
+                  class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105">
+                  Start Quiz
+                </button>
+              </div>
+            </div>
+          {/each}
         </div>
-        <button type="submit" class="mt-6 bg-[#0f535c] text-white py-2 px-6 rounded-lg hover:bg-[#023e8a] transition-colors duration-300">
-          Send Message
-        </button>
-      </form>
-    </div>
-  </section>
-</div>
+      </div>
+    </section>
 
-<!-- Footer -->
-<footer class="bg-gradient-to-r from-[#38a0ac] to-[#ffff] text-[#0f535c] py-6 text-center">
-  <div class="container mx-auto">
-    <p class="mb-4">&copy; 2024 LLMVerse. All rights reserved.</p>
-    <div class="space-x-4 mb-4">
-      <a href="/privacy" class="hover:text-blue-300">Privacy Policy</a>
-      <a href="/terms" class="hover:text-blue-300">Terms of Service</a>
-      <a href="#contact" class="hover:text-blue-300">Contact</a>
-    </div>
-    <div class="space-x-6">
-      <a href="#" class="hover:text-blue-300">
-        <i class="fab fa-facebook"></i>
-      </a>
-      <a href="#" class="hover:text-blue-300">
-        <i class="fab fa-twitter"></i>
-      </a>
-      <a href="#" class="hover:text-blue-300">
-        <i class="fab fa-linkedin"></i>
-      </a>
-    </div>
-  </div>
-</footer>
+    <!-- Rewards Section -->
+    <section id="rewards" class="py-16 bg-gray-100" class:hidden={activeSection !== 'rewards'}>
+      <div class="container mx-auto">
+        <div class="text-center mb-12">
+          <h2 class="text-4xl font-extrabold text-[#0f535c] mb-4">Rewards</h2>
+          <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+            Earn tokens and redeem them for exciting rewards. Check out what you can get!
+          </p>
+        </div>
 
-<footer class="bg-[#023e8a] text-white py-8">
-  <div class="container mx-auto text-center">
-    <p class="text-sm">© 2024 LLMVerse. All rights reserved.</p>
-  </div>
-</footer>
+        <!-- Tabs Navigation -->
+        <div class="flex justify-center mb-8 space-x-4">
+          <button 
+            on:click={() => handleTabChange('overview')} 
+            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+              activeTab === 'overview' 
+                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+                : 'text-[#0077b6] hover:text-[#023e8a]'
+            }`}
+          >
+            <i class="fas fa-info-circle mr-2"></i> Overview
+          </button>
+          <button 
+            on:click={() => handleTabChange('tokens')} 
+            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+              activeTab === 'tokens' 
+                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+                : 'text-[#0077b6] hover:text-[#023e8a]'
+            }`}
+          >
+            <i class="fas fa-coins mr-2"></i> Your Tokens
+          </button>
+          <button 
+            on:click={() => handleTabChange('recent')} 
+            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+              activeTab === 'recent' 
+                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+                : 'text-[#0077b6] hover:text-[#023e8a]'
+            }`}
+          >
+            <i class="fas fa-star mr-2"></i> Recent Rewards
+          </button>
+          <button 
+            on:click={() => handleTabChange('redeem')} 
+            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+              activeTab === 'redeem' 
+                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+                : 'text-[#0077b6] hover:text-[#023e8a]'
+            }`}
+          >
+            <i class="fas fa-gift mr-2"></i> Redeem Rewards
+          </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="space-y-8">
+          {#if activeTab === 'overview'}
+            <section class="bg-white p-8 rounded-lg shadow-xl">
+              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Overview</h3>
+              <p class="text-gray-700 mb-6">
+                Explore the rewards you can earn and redeem. Check your token balance and recent reward activities.
+              </p>
+              <!-- Add content or graphics here -->
+            </section>
+          {/if}
+
+          {#if activeTab === 'tokens'}
+            <section class="bg-white p-8 rounded-lg shadow-xl">
+              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Your Tokens</h3>
+              <p class="text-gray-700 mb-6">
+                You currently have <span class="font-bold text-[#f59e0b]">{userTokens}</span> tokens.
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward1}</h4>
+                  <p class="text-gray-600">Access to a free course of your choice.</p>
+                </div>
+                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward2}</h4>
+                  <p class="text-gray-600">Exclusive NFT Badge to showcase your achievements.</p>
+                </div>
+                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward3}</h4>
+                  <p class="text-gray-600">One-on-One Mentor Session with industry experts.</p>
+                </div>
+                <!-- Add more rewards as needed -->
+              </div>
+            </section>
+          {/if}
+
+          {#if activeTab === 'recent'}
+            <section class="bg-white p-8 rounded-lg shadow-xl">
+              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Recent Rewards</h3>
+              <ul class="list-disc list-inside text-gray-700 space-y-3">
+                <li>{recentToken1}</li>
+                <li>{recentToken2}</li>
+                <li>{recentToken3}</li>
+              </ul>
+            </section>
+          {/if}
+
+          {#if activeTab === 'redeem'}
+            <section class="bg-white p-8 rounded-lg shadow-xl">
+              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Redeem Rewards</h3>
+              <p class="text-gray-700 mb-6">
+                Here you can redeem your tokens for various rewards. Choose from our exciting options and use your tokens wisely!
+              </p>
+
+              <!-- Wallet Integration -->
+              <div class="mb-8">
+                <p class="text-gray-700 mb-4">Connect your wallet to proceed with the redemption:</p>
+                <button 
+                  on:click={connectWallet} 
+                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300">
+                  Connect Wallet
+                </button>
+              </div>
+
+              <!-- Redemption Form -->
+              <form on:submit={handleRedemption} class="space-y-6">
+                <label class="block mb-2 text-gray-700" for="reward-select">Select Reward:</label>
+                <select 
+                  id="reward-select" 
+                  class="block w-full p-3 border border-gray-300 rounded-lg"
+                  bind:value={selectedReward}
+                >
+                  <option value="" disabled>Select a reward</option>
+                  <option value="course">{reward1}</option>
+                  <option value="nft">{reward2}</option>
+                  <option value="mentor">{reward3}</option>
+                  <!-- Add more rewards as needed -->
+                </select>
+
+                <button 
+                  type="submit"
+                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300">
+                  Redeem Now
+                </button>
+              </form>
+            </section>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-16 bg-gray-50" class:hidden={activeSection !== 'contact'}>
+      <div class="container mx-auto text-center">
+        <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Contact Us</h2>
+        <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+          Have questions or need assistance? Get in touch with us!
+        </p>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+          <form action="#" method="POST" class="space-y-4">
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+              <input type="text" placeholder="Your Name" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2" required />
+              <input type="email" placeholder="Your Email" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2" required />
+            </div>
+            <textarea placeholder="Your Message" class="border border-gray-300 rounded-lg p-2 w-full" rows="4" required></textarea>
+            <button
+              type="submit"
+              class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+              Send Message
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white text-[#0f535c] py-6 text-center">
+      <div class="container mx-auto">
+        <p>&copy; 2024 LLMVerse. All rights reserved.</p>
+        <p class="mt-2">
+          Follow us on 
+          <a href="#" class="text-blue-300 hover:underline">Twitter</a>, 
+          <a href="#" class="text-blue-300 hover:underline">Facebook</a>, 
+          <a href="#" class="text-blue-300 hover:underline">Instagram</a>.
+        </p>
+      </div>
+    </footer>
+    </main>
