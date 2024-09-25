@@ -1,123 +1,183 @@
 <script>
+// @ts-nocheck
+
   import { onMount } from 'svelte';
   import logo from '../../../public/image8.png';
+  import Modal from './Modal1.svelte'; // Ensure Modal.svelte is correctly imported
 
-  // State Variables
   let activeSection = 'courses'; // Default section
-  let seeAll = false; // Toggle 'See All' visibility
-  let activeTab = 'overview'; // Active tab in Rewards section
-  let selectedReward = ''; // Selected reward for redemption
-  let userTokens = 50; // Example token count
-  let quizTimer = 60; // Quiz timer in seconds
+  let selectedSort = 'default';
+  // Function to handle navigation clicks
+  function handleNavClick(section) {
+    activeSection = section;
+    document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
+  }
 
-  // Quizzes Data
+  // Mock data for courses
+  let courses = [
+    {
+      id: 'intro-to-ai-blockchain',
+      title: 'Introduction to AI and Blockchain',
+      description: 'Explore the foundational concepts of AI and blockchain technologies.',
+      image: '/images/course1.jpg',
+      rating: 4.5,
+      tags: ['AI', 'Blockchain', 'Beginner']
+    },
+    {
+      id: 'advanced-ai-techniques',
+      title: 'Advanced AI Techniques',
+      description: 'Learn advanced AI algorithms and their applications in real-world scenarios.',
+      image: '/images/course2.jpg',
+      rating: 4.8,
+      tags: ['AI', 'Advanced', 'Machine Learning']
+    },
+    {
+      id: 'blockchain-development',
+      title: 'Blockchain Development Essentials',
+      description: 'Master the essentials of blockchain development and smart contract programming.',
+      image: '/images/course3.jpg',
+      rating: 4.6,
+      tags: ['Blockchain', 'Development', 'Ethereum']
+    }
+  ];
+
+  let seeAll = false;
+  let activeTab = 'overview';
+  let selectedReward = '';
+  let userTokens = 50;
+  let quizTimer = 60;
+
   let quizzes = [
     { title: "AI Basics Quiz", description: "Test your knowledge of AI fundamentals.", questions: 10 },
     { title: "Blockchain 101 Quiz", description: "How well do you know blockchain technology?", questions: 12 },
     { title: "DeFi & Fintech Quiz", description: "Assess your understanding of decentralized finance and fintech.", questions: 8 }
   ];
 
-  // User Progress Data
   let userProgress = {
     'introduction-to-ai-and-blockchain': 0,
     'advanced-ai-techniques': 70,
-    'blockchain-development-essentials': 45,
-    'defi-and-fintech': 30,
-    'ai-ethics-and-governance': 10
+    'blockchain-development-essentials': 45
   };
 
-  // Recent Tokens Data
   let recentToken1 = 'Completed AI Basics Quiz: +10 tokens';
   let recentToken2 = 'Completed Blockchain 101 Quiz: +12 tokens';
   let recentToken3 = 'Completed DeFi & Fintech Quiz: +8 tokens';
 
-  // Rewards Data
   let reward1 = 'Free Course Access';
   let reward2 = 'Exclusive NFT Badge';
   let reward3 = 'One-on-One Mentor Session';
 
-  // Chat History Data
   let chatHistory = [
     { date: '2024-09-01', topic: 'Customer Support' },
     { date: '2024-08-15', topic: 'Learning Assistance' }
   ];
 
-  // Functions
+  let searchQuery = '';
+  let selectedTag = 'All';
 
-  // Handle Redemption Form Submission
-  const handleRedemption = (event) => {
-    event.preventDefault();
-    if (selectedReward) {
-      // Implement redemption logic here
-      console.log(`Redeeming ${selectedReward}`);
-      // Optionally, update user tokens or show a success message
-    } else {
-      console.error('Please select a reward.');
-      // Optionally, show an error message to the user
-    }
-  };
+  let showModal = false;
+  let modalContent = {};
 
-  // Connect Wallet Function
-  const connectWallet = () => {
-    // Implement wallet connection logic here
-    console.log('Connecting wallet...');
-    // For example, integrate with Web3 or other wallet providers
-  };
+  let leaderboard = [
+    { name: 'John Doe', xp: 950 },
+    { name: 'Jane Smith', xp: 820 },
+    { name: 'Alex Johnson', xp: 780 }
+  ];
+
+  let tags = ['All', 'AI', 'Blockchain', 'DeFi', 'Fintech', 'Machine Learning', 'Ethics', 'Beginner', 'Intermediate', 'Advanced'];
+
+  // Filter courses based on search and tags
+  // Filtered courses based on search query and selected tag
+  $: filteredCourses = courses.filter(course => {
+    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTag = selectedTag === 'All' || course.tags.includes(selectedTag);
+    return matchesSearch && matchesTag;
+  }).sort((a, b) => {
+    if (selectedSort === 'rating') return b.rating - a.rating;
+    if (selectedSort === 'progress') return (userProgress[b.id] || 0) - (userProgress[a.id] || 0);
+    return 0; // default
+  });
+
+  // Function to toggle See All Courses
+  function toggleSeeAll() {
+    seeAll = !seeAll;
+  }
 
   // Handle Tab Change in Rewards Section
   const handleTabChange = (tab) => {
     activeTab = tab;
   };
 
-  // Handle Navigation Click
-  function handleNavClick(section) {
-    activeSection = section;
-    const element = document.getElementById(section);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
-
-  // Start Learning a Course
-  function startLearning(courseId) {
-    activeSection = 'chatgpt-interface';
-    userTokens += 10; // Reward for starting the course
-    const element = document.getElementById('chatgpt-interface');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  }
-
   // Start a Quiz
   function startQuiz(quiz) {
     let startTime = Date.now();
-    // Simulate quiz duration with a timeout
     setTimeout(() => {
       let endTime = Date.now();
-      let timeTaken = (endTime - startTime) / 1000; // Time in seconds
+      let timeTaken = (endTime - startTime) / 1000;
       if (timeTaken <= quizTimer) {
-        userTokens += 10; // Bonus for completing within time
+        userTokens += 10;
       }
       console.log(`Quiz completed in ${timeTaken} seconds. Tokens earned: ${userTokens}`);
-      // Optionally, update recent tokens or show a success message
     }, quizTimer * 1000);
   }
 
-  // Toggle 'See All' Courses
-  function toggleSeeAll() {
-    seeAll = !seeAll;
+  // Handle Redemption Form Submission
+  const handleRedemption = (event) => {
+    event.preventDefault();
+    if (selectedReward) {
+      console.log(`Redeeming ${selectedReward}`);
+      userTokens -= getRewardCost(selectedReward);
+      recentToken1 = `Redeemed ${selectedReward}: -${getRewardCost(selectedReward)} tokens`;
+    } else {
+      console.error('Please select a reward.');
+    }
+  };
+
+  // Get Reward Cost
+  function getRewardCost(reward) {
+    const rewardCosts = {
+      'Free Course Access': 20,
+      'Exclusive NFT Badge': 50,
+      'One-on-One Mentor Session': 100
+    };
+    return rewardCosts[reward] || 0;
   }
 
-  // Load Chat Function (for Chat History)
+  // Connect Wallet
+  const connectWallet = () => {
+    console.log('Connecting wallet...');
+  };
+
+  // Load Chat
   function loadChat(date, topic) {
-    // Implement chat loading logic here
     console.log(`Loading chat for ${topic} on ${date}`);
-    // For example, fetch chat history from a server or display existing messages
   }
 
-  // On Mount
+  // Start Learning
+  function startLearning() {
+    activeSection = 'chatbots'; // Set active section to chatbots
+    // Scroll to the chatbot section
+    const section = document.getElementById('chatboats');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+
+  // Open Modal
+  function openModal(course) {
+    modalContent = course;
+    showModal = true;
+  }
+
+  // Close Modal
+  function closeModal() {
+    showModal = false;
+    modalContent = {};
+  }
+
   onMount(() => {
-    handleNavClick('courses'); // Set the default section on page load
+    handleNavClick('courses');
   });
 </script>
 
@@ -126,13 +186,13 @@
   <div class="flex items-center space-x-4">
     <a href="/" class="flex items-center space-x-2">
       <img src={logo} alt="LLM Logo" class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300" />
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">LLMVerse</h1>
+      <h1 class="text-xl sm:text-2xl font-bold">LLMVerse</h1>
     </a>
   </div>
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ['Courses', 'Chatbots', 'Quizzes', 'Rewards', 'Contact'] as link}
+    {#each ['Courses', 'Chatbots', 'Contact'] as link}
       <a
         on:click={() => handleNavClick(link.toLowerCase())}
         class="text-white hover:text-blue-300 border-b-2 border-transparent hover:border-white px-4 py-2 transition-all duration-300 cursor-pointer"
@@ -141,6 +201,8 @@
       </a>
     {/each}
   </nav>
+
+
 
   <!-- Right Section Buttons -->
   <div class="flex space-x-4 mt-4 md:mt-0">
@@ -161,338 +223,422 @@
 <main class="pt-20"> <!-- Add padding-top to offset the fixed navbar -->
   
   <!-- Courses Section -->
-  <section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
-    <div class="container mx-auto text-center">
-      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Available Courses</h2>
-      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+ <!-- <section id="start-learning" class="py-16 bg-[#90CAF9] text-white">
+  <div class="container mx-auto px-4 text-center">
+    <h2 class="text-3xl font-extrabold mb-4">Start Learning Today!</h2>
+    <p class="text-lg mb-6">
+      Unlock your potential with our expertly designed courses. 
+      Join our community and enhance your skills in AI and blockchain technologies.
+    </p>
+    <a href="#courses" class="bg-[#0077b6] hover:bg-[#005f7f] text-white font-semibold py-3 px-6 rounded-lg transition duration-300">
+      Explore Courses
+    </a>
+  </div>
+</section> -->
+
+<section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
+  <div class="container mx-auto px-4">
+    <!-- Courses Section Header -->
+    <div class="text-center mb-12">
+      <h2 class="text-4xl font-extrabold text-[#0077b6] mb-4 transition duration-300 hover:underline">
+        Available Courses
+      </h2>
+      <p class="text-gray-600 text-lg max-w-2xl mx-auto">
         Explore our curated courses designed to deepen your understanding of AI and blockchain technologies.
       </p>
+    </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {#each [
-          { id: 'introduction-to-ai-and-blockchain', title: 'Introduction to AI and Blockchain', description: 'Learn the fundamentals of AI and blockchain technology, including their applications and impact on various industries.' },
-          { id: 'advanced-ai-techniques', title: 'Advanced AI Techniques', description: 'Dive deeper into advanced AI techniques, including machine learning, deep learning, and neural networks.' },
-          { id: 'blockchain-development-essentials', title: 'Blockchain Development Essentials', description: 'Understand the essentials of blockchain development, including smart contracts, decentralized apps (DApps), and blockchain architecture.' }
-        ] as { id, title, description }}
-          <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
-            <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
-            <p class="text-gray-800 mb-4">{description}</p>
-            <div class="h-2 bg-gray-200 rounded-full mb-4">
-              <div class="h-full bg-[#023e8a] rounded-full" style="width: {userProgress[id] || 0}%"></div>
-            </div>
-            <div class="flex justify-center space-x-4">
+    <!-- Search and Filter -->
+    <div class="flex flex-col md:flex-row justify-center items-center mb-8 space-y-4 md:space-y-0 md:space-x-4">
+      <input 
+        type="text" 
+        placeholder="Search courses..." 
+        bind:value={searchQuery}
+        class="w-full md:w-1/3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+      />
+      <select 
+        bind:value={selectedTag} 
+        class="w-full md:w-1/4 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+      >
+        <option value="All">All Tags</option>
+        {#each tags as tag}
+          <option value={tag}>{tag}</option>
+        {/each}
+      </select>
+      <select 
+        bind:value={selectedSort} 
+        class="w-full md:w-1/4 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+      >
+        <option value="default">Sort By</option>
+        <option value="rating">Rating</option>
+        <option value="progress">Progress</option>
+      </select>
+    </div>
+
+    <!-- Courses Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {#each filteredCourses as course}
+        <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 transform hover:scale-105 flex flex-col">
+          <!-- Course Image -->
+          <img src={course.image} alt={course.title} class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105" />
+
+          <!-- Course Title -->
+          <h3 class="text-xl font-semibold text-[#0077b6] mb-1">{course.title}</h3>
+
+          <!-- Course Tags -->
+          <div class="flex flex-wrap gap-1 mb-2">
+            {#each course.tags as tag}
+              <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">{tag}</span>
+            {/each}
+          </div>
+
+          <!-- Course Description -->
+          <p class="text-gray-800 mb-3 flex-grow">{course.description}</p>
+
+          <!-- Progress Bar -->
+          <div class="h-2 bg-gray-300 rounded-full mb-3">
+            <div class="h-full bg-[#0077b6] rounded-full" style="width: {userProgress[course.id] || 0}%"></div>
+          </div>
+
+          <!-- Ratings -->
+          <div class="flex items-center mb-3">
+            <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.154c.969 0 1.371 1.24.588 1.81l-3.364 2.448a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118L10 13.347l-3.364 2.448c-.785.57-1.84-.197-1.54-1.118l1.286-3.957a1 1 0 00-.364-1.118L2.13 9.384c-.783-.57-.38-1.81.588-1.81h4.154a1 1 0 00.95-.69l1.286-3.957z" />
+            </svg>
+            <span class="ml-1 text-gray-700 font-semibold">{course.rating} / 5</span>
+          </div>
+
+          <!-- Share Links -->
+          <!-- Share Links -->
+<!-- Share Links -->
+<div class="flex justify-between mt-4">
+  <a href={`https://twitter.com/share?url=${encodeURIComponent(course.url)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on Twitter`}>
+    <i class="fab fa-twitter mr-2"></i> <!-- Twitter Icon -->
+    Share on Twitter
+  </a>
+  <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(course.url)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on Facebook`}>
+    <i class="fab fa-facebook-f mr-2"></i> <!-- Facebook Icon -->
+    Share on Facebook
+  </a>
+  <a href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(course.url)}&title=${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on LinkedIn`}>
+    <i class="fab fa-linkedin-in mr-2"></i> <!-- LinkedIn Icon -->
+    Share on LinkedIn
+  </a>
+</div>
+
+<!-- Include Font Awesome CDN in your HTML file if you haven't already -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+
+          <!-- Start Learning Button -->
+        
+          <button
+          on:click={startLearning} 
+          class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+          Start Learning
+        </button>
+        
+       
+        </div>
+      {/each}
+    </div>
+    
+  </div>
+
+  <div class="mt-4">
+    <a href="/all-courses" class="text-[#0077b6] font-bold hover:underline" aria-label="View All Courses">
+      View All Courses
+    </a>
+  </div>
+</section>
+
+
+  
+  <!-- Chatbots Section -->
+ 
+    <section id="chatgpt-interface" class="py-16 bg-gray-100" class:hidden={activeSection !== 'chatbots'}>
+
+    <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
+      <!-- Sidebar for Chat History -->
+      <aside class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8">
+        <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
+        <div class="overflow-y-auto max-h-[500px]">
+          <ul class="space-y-4">
+            {#each chatHistory as { date, topic }}
+              <li>
+                <button 
+                  class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
+                  on:click={() => loadChat(date, topic)}
+                >
+                  <div class="font-semibold text-gray-900">{topic}</div>
+                  <div class="text-sm text-gray-600">{date}</div>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Main Chat Interface -->
+      <div class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]">
+        <!-- Chat Window -->
+        <div id="chat-window" class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
+          <!-- Example Chat Messages -->
+          <div class="mb-4">
+            <div class="text-sm text-gray-600 mb-1">User:</div>
+            <div class="bg-gray-200 p-2 rounded-lg">Hello, how can I use the chatbot?</div>
+          </div>
+          <div class="mb-4">
+            <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
+            <div class="bg-[#E1AD01] text-white p-2 rounded-lg">You can ask me anything, and I'll provide the best possible answers!</div>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="flex items-center border-t border-gray-300 pt-4">
+          <input 
+            type="text" 
+            id="chat-input" 
+            class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01] transition duration-300"
+            placeholder="Type your message here..."
+          />
+          <button 
+            id="send-btn" 
+            class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quizzes Section -->
+  <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]" class:hidden={activeSection !== 'quizzes'}>
+    <div class="container mx-auto text-center">
+      <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+      <!-- <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
+        Test your knowledge with our fun quizzes and earn tokens for your achievements.
+      </p>
+ -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        {#each quizzes as quiz}
+          <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col">
+            <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
+            <p class="text-gray-700 mb-4 flex-grow">{quiz.description}</p>
+            <div class="flex justify-center">
               <button
-                on:click={() => startLearning(id)}
-                class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
-                Start Learning
-              </button>
-              <button
-                class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105">
-                View Details
+                on:click={() => startQuiz(quiz)}
+                class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
+              >
+                Start Quiz
               </button>
             </div>
           </div>
         {/each}
+      </div>
+    </div>
+  </section>
 
-        <!-- "See All" button -->
-        <div class="col-span-full text-center mt-6">
-          <button on:click={toggleSeeAll} class="text-[#023e8a] hover:underline">
-            {seeAll ? 'Show Less' : 'See All'}
-          </button>
-        </div>
+  <!-- Rewards Section -->
+  <section id="rewards" class="py-16 bg-gray-100" class:hidden={activeSection !== 'rewards'}>
+    <div class="container mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-5xl font-extrabold text-[#0f535c] mb-4">Rewards</h2>
+        <p class="text-gray-700 text-lg max-w-2xl mx-auto">
+          Earn tokens and redeem them for exciting rewards. Check out what you can get!
+        </p>
       </div>
 
-      {#if seeAll}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-          {#each [
-            { id: 'defi-and-fintech', title: 'DeFi and Fintech', description: 'Explore the decentralized finance (DeFi) space and the future of fintech with blockchain.' },
-            { id: 'ai-ethics-and-governance', title: 'AI Ethics and Governance', description: 'Understand the ethical implications of AI and how governance frameworks are shaping its development.' }
-          ] as { id, title, description }}
-            <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
-              <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
-              <p class="text-gray-800 mb-4">{description}</p>
-              <div class="h-2 bg-gray-200 rounded-full mb-4">
-                <div class="h-full bg-[#023e8a] rounded-full" style="width: {userProgress[id] || 0}%"></div>
-              </div>
-              <div class="flex justify-center space-x-4">
-                <button
-                  on:click={() => startLearning(id)}
-                  class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
-                  Start Learning
-                </button>
-                <button
-                  class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105">
-                  View Details
-                </button>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
+      <!-- Tabs Navigation -->
+      <div class="flex justify-center mb-8 space-x-4">
+        <button 
+          on:click={() => handleTabChange('overview')} 
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === 'overview' 
+              ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+              : 'text-[#0077b6] hover:text-[#023e8a]'
+          }`}
+        >
+          <i class="fas fa-info-circle mr-2"></i> Overview
+        </button>
+        <button 
+          on:click={() => handleTabChange('tokens')} 
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === 'tokens' 
+              ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+              : 'text-[#0077b6] hover:text-[#023e8a]'
+          }`}
+        >
+          <i class="fas fa-coins mr-2"></i> Your Tokens
+        </button>
+        <button 
+          on:click={() => handleTabChange('recent')} 
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === 'recent' 
+              ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+              : 'text-[#0077b6] hover:text-[#023e8a]'
+          }`}
+        >
+          <i class="fas fa-star mr-2"></i> Recent Rewards
+        </button>
+        <button 
+          on:click={() => handleTabChange('redeem')} 
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === 'redeem' 
+              ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
+              : 'text-[#0077b6] hover:text-[#023e8a]'
+          }`}
+        >
+          <i class="fas fa-gift mr-2"></i> Redeem Rewards
+        </button>
+      </div>
 
-    <!-- Chatbots Section -->
-    <section id="chatgpt-interface" class="py-16 bg-gray-100" class:hidden={activeSection !== 'chatbots'}>
-      <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
-        <!-- Sidebar for Chat History -->
-        <aside class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8">
-          <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
-          <div class="overflow-y-auto max-h-[500px]">
-            <ul class="space-y-4">
-              {#each chatHistory as { date, topic }}
-                <li>
-                  <button 
-                    class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
-                    on:click={() => loadChat(date, topic)}
-                  >
-                    <div class="font-semibold text-gray-900">{topic}</div>
-                    <div class="text-sm text-gray-600">{date}</div>
-                  </button>
-                </li>
-              {/each}
+      <!-- Content Area -->
+      <div class="space-y-8">
+        {#if activeTab === 'overview'}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Overview</h3>
+            <p class="text-gray-700 mb-6">
+              Explore the rewards you can earn and redeem. Check your token balance and recent reward activities.
+            </p>
+            <!-- Add content or graphics here -->
+          </section>
+        {/if}
+
+        {#if activeTab === 'tokens'}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Your Tokens</h3>
+            <p class="text-gray-700 mb-6">
+              You currently have <span class="font-bold text-[#f59e0b]">{userTokens}</span> tokens.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward1}</h4>
+                <p class="text-gray-600">Access to a free course of your choice.</p>
+              </div>
+              <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward2}</h4>
+                <p class="text-gray-600">Exclusive NFT Badge to showcase your achievements.</p>
+              </div>
+              <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+                <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward3}</h4>
+                <p class="text-gray-600">One-on-One Mentor Session with industry experts.</p>
+              </div>
+              <!-- Add more rewards as needed -->
+            </div>
+          </section>
+        {/if}
+
+        {#if activeTab === 'recent'}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Recent Rewards</h3>
+            <ul class="list-disc list-inside text-gray-700 space-y-3">
+              <li>{recentToken1}</li>
+              <li>{recentToken2}</li>
+              <li>{recentToken3}</li>
             </ul>
-          </div>
-        </aside>
+          </section>
+        {/if}
 
-        <!-- Main Chat Interface -->
-        <div class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]">
-          <!-- Chat Window -->
-          <div id="chat-window" class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
-            <!-- Example Chat Messages -->
-            <div class="mb-4">
-              <div class="text-sm text-gray-600 mb-1">User:</div>
-              <div class="bg-gray-200 p-2 rounded-lg">Hello, how can I use the chatbot?</div>
+        {#if activeTab === 'redeem'}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Redeem Rewards</h3>
+            <p class="text-gray-700 mb-6">
+              Here you can redeem your tokens for various rewards. Choose from our exciting options and use your tokens wisely!
+            </p>
+
+            <!-- Wallet Integration -->
+            <div class="mb-8">
+              <p class="text-gray-700 mb-4">Connect your wallet to proceed with the redemption:</p>
+              <button 
+                on:click={connectWallet} 
+                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300 shadow-md hover:shadow-lg"
+              >
+                Connect Wallet
+              </button>
             </div>
-            <div class="mb-4">
-              <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
-              <div class="bg-[#E1AD01] text-white p-2 rounded-lg">You can ask me anything, and I'll provide the best possible answers!</div>
-            </div>
-          </div>
 
-          <!-- Chat Input -->
-          <div class="flex items-center border-t border-gray-300 pt-4">
-            <input 
-              type="text" 
-              id="chat-input" 
-              class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01]" 
-              placeholder="Type your message here..."
-            >
-            <button 
-              id="send-btn" 
-              class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300">
-              Send
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Quizzes Section -->
-    <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]" class:hidden={activeSection !== 'quizzes'}>
-      <div class="container mx-auto text-center">
-        <h2 class="text-4xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-        <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
-          Test your knowledge with our fun quizzes and earn tokens for your achievements.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {#each quizzes as quiz}
-            <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105">
-              <h3 class="text-xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
-              <p class="text-gray-700 mb-4">{quiz.description}</p>
-              <div class="flex justify-center">
-                <button
-                  on:click={() => startQuiz(quiz)}
-                  class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105">
-                  Start Quiz
-                </button>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    </section>
-
-    <!-- Rewards Section -->
-    <section id="rewards" class="py-16 bg-gray-100" class:hidden={activeSection !== 'rewards'}>
-      <div class="container mx-auto">
-        <div class="text-center mb-12">
-          <h2 class="text-4xl font-extrabold text-[#0f535c] mb-4">Rewards</h2>
-          <p class="text-gray-600 text-lg max-w-2xl mx-auto">
-            Earn tokens and redeem them for exciting rewards. Check out what you can get!
-          </p>
-        </div>
-
-        <!-- Tabs Navigation -->
-        <div class="flex justify-center mb-8 space-x-4">
-          <button 
-            on:click={() => handleTabChange('overview')} 
-            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
-              activeTab === 'overview' 
-                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
-                : 'text-[#0077b6] hover:text-[#023e8a]'
-            }`}
-          >
-            <i class="fas fa-info-circle mr-2"></i> Overview
-          </button>
-          <button 
-            on:click={() => handleTabChange('tokens')} 
-            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
-              activeTab === 'tokens' 
-                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
-                : 'text-[#0077b6] hover:text-[#023e8a]'
-            }`}
-          >
-            <i class="fas fa-coins mr-2"></i> Your Tokens
-          </button>
-          <button 
-            on:click={() => handleTabChange('recent')} 
-            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
-              activeTab === 'recent' 
-                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
-                : 'text-[#0077b6] hover:text-[#023e8a]'
-            }`}
-          >
-            <i class="fas fa-star mr-2"></i> Recent Rewards
-          </button>
-          <button 
-            on:click={() => handleTabChange('redeem')} 
-            class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
-              activeTab === 'redeem' 
-                ? 'text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md' 
-                : 'text-[#0077b6] hover:text-[#023e8a]'
-            }`}
-          >
-            <i class="fas fa-gift mr-2"></i> Redeem Rewards
-          </button>
-        </div>
-
-        <!-- Content Area -->
-        <div class="space-y-8">
-          {#if activeTab === 'overview'}
-            <section class="bg-white p-8 rounded-lg shadow-xl">
-              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Overview</h3>
-              <p class="text-gray-700 mb-6">
-                Explore the rewards you can earn and redeem. Check your token balance and recent reward activities.
-              </p>
-              <!-- Add content or graphics here -->
-            </section>
-          {/if}
-
-          {#if activeTab === 'tokens'}
-            <section class="bg-white p-8 rounded-lg shadow-xl">
-              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Your Tokens</h3>
-              <p class="text-gray-700 mb-6">
-                You currently have <span class="font-bold text-[#f59e0b]">{userTokens}</span> tokens.
-              </p>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward1}</h4>
-                  <p class="text-gray-600">Access to a free course of your choice.</p>
-                </div>
-                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward2}</h4>
-                  <p class="text-gray-600">Exclusive NFT Badge to showcase your achievements.</p>
-                </div>
-                <div class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">{reward3}</h4>
-                  <p class="text-gray-600">One-on-One Mentor Session with industry experts.</p>
-                </div>
+            <!-- Redemption Form -->
+            <form on:submit={handleRedemption} class="space-y-6">
+              <label class="block mb-2 text-gray-700" for="reward-select">Select Reward:</label>
+              <select 
+                id="reward-select" 
+                class="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl"
+                bind:value={selectedReward}
+              >
+                <option value="" disabled>Select a reward</option>
+                <option value="Free Course Access">{reward1}</option>
+                <option value="Exclusive NFT Badge">{reward2}</option>
+                <option value="One-on-One Mentor Session">{reward3}</option>
                 <!-- Add more rewards as needed -->
-              </div>
-            </section>
-          {/if}
+              </select>
 
-          {#if activeTab === 'recent'}
-            <section class="bg-white p-8 rounded-lg shadow-xl">
-              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Recent Rewards</h3>
-              <ul class="list-disc list-inside text-gray-700 space-y-3">
-                <li>{recentToken1}</li>
-                <li>{recentToken2}</li>
-                <li>{recentToken3}</li>
-              </ul>
-            </section>
-          {/if}
-
-          {#if activeTab === 'redeem'}
-            <section class="bg-white p-8 rounded-lg shadow-xl">
-              <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">Redeem Rewards</h3>
-              <p class="text-gray-700 mb-6">
-                Here you can redeem your tokens for various rewards. Choose from our exciting options and use your tokens wisely!
-              </p>
-
-              <!-- Wallet Integration -->
-              <div class="mb-8">
-                <p class="text-gray-700 mb-4">Connect your wallet to proceed with the redemption:</p>
-                <button 
-                  on:click={connectWallet} 
-                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300">
-                  Connect Wallet
-                </button>
-              </div>
-
-              <!-- Redemption Form -->
-              <form on:submit={handleRedemption} class="space-y-6">
-                <label class="block mb-2 text-gray-700" for="reward-select">Select Reward:</label>
-                <select 
-                  id="reward-select" 
-                  class="block w-full p-3 border border-gray-300 rounded-lg"
-                  bind:value={selectedReward}
-                >
-                  <option value="" disabled>Select a reward</option>
-                  <option value="course">{reward1}</option>
-                  <option value="nft">{reward2}</option>
-                  <option value="mentor">{reward3}</option>
-                  <!-- Add more rewards as needed -->
-                </select>
-
-                <button 
-                  type="submit"
-                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300">
-                  Redeem Now
-                </button>
-              </form>
-            </section>
-          {/if}
-        </div>
+              <button 
+                type="submit"
+                class="w-full bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300 shadow-md hover:shadow-lg"
+              >
+                Redeem Now
+              </button>
+            </form>
+          </section>
+        {/if}
       </div>
-    </section>
+    </div>
 
-    <!-- Contact Section -->
-    <section id="contact" class="py-16 bg-gray-50" class:hidden={activeSection !== 'contact'}>
-      <div class="container mx-auto text-center">
-        <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Contact Us</h2>
-        <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
-          Have questions or need assistance? Get in touch with us!
-        </p>
+    <!-- Modal for Course Details -->
+    <Modal 
+      showModal={showModal} 
+      modalContent={modalContent} 
+      onClose={closeModal} 
+    />
+  </section>
 
-        <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
-          <form action="#" method="POST" class="space-y-4">
-            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-              <input type="text" placeholder="Your Name" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2" required />
-              <input type="email" placeholder="Your Email" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2" required />
-            </div>
-            <textarea placeholder="Your Message" class="border border-gray-300 rounded-lg p-2 w-full" rows="4" required></textarea>
-            <button
-              type="submit"
-              class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
-              Send Message
-            </button>
-          </form>
-        </div>
+  <!-- Contact Section -->
+  <section id="contact" class="py-16 bg-gray-50" class:hidden={activeSection !== 'contact'}>
+    <div class="container mx-auto text-center">
+      <h2 class="text-5xl font-extrabold text-[#0f535c] mb-8">Contact Us</h2>
+      <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
+        Have questions or need assistance? Get in touch with us!
+      </p>
+
+      <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+        <form action="#" method="POST" class="space-y-4">
+          <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+            <input type="text" placeholder="Your Name" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl" required />
+            <input type="email" placeholder="Your Email" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl" required />
+          </div>
+          <textarea placeholder="Your Message" class="border border-gray-300 rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl" rows="4" required></textarea>
+          <button
+            type="submit"
+            class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
+          >
+            Send Message
+          </button>
+        </form>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Footer -->
-    <footer class="bg-white text-[#0f535c] py-6 text-center">
-      <div class="container mx-auto">
-        <p>&copy; 2024 LLMVerse. All rights reserved.</p>
-        <p class="mt-2">
-          Follow us on 
-          <a href="#" class="text-blue-300 hover:underline">Twitter</a>, 
-          <a href="#" class="text-blue-300 hover:underline">Facebook</a>, 
-          <a href="#" class="text-blue-300 hover:underline">Instagram</a>.
-        </p>
-      </div>
-    </footer>
-    </main>
+  <!-- Footer -->
+  <footer class="bg-white text-[#0f535c] py-6 text-center">
+    <div class="container mx-auto">
+      <p>&copy; 2024 LLMVerse. All rights reserved.</p>
+      <p class="mt-2">
+        Follow us on 
+        <a href="#" class="text-blue-300 hover:underline">Twitter</a>, 
+        <a href="#" class="text-blue-300 hover:underline">Facebook</a>, 
+        <a href="#" class="text-blue-300 hover:underline">Instagram</a>.
+      </p>
+    </div>
+  </footer>
+</main>
+
+<style>
+  /* Ensure responsiveness and proper spacing */
+  main {
+    padding-top: 5rem; /* Adjust if navbar height changes */
+  }
+
+  /* Modal Styles (if any additional styles are needed) */
+</style>
