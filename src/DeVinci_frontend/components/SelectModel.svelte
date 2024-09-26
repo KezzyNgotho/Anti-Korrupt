@@ -1,9 +1,10 @@
 <script>
   import { onMount } from 'svelte';
   import logo from '../../../public/image8.png';
+  import hero from "../../../public/image9.png";
 
   // State Variables
-  let activeSection = 'courses'; // Default section
+  let activeSection = 'home'; // Default section
   let seeAll = false; // Toggle 'See All' visibility
   let activeTab = 'overview'; // Active tab in Rewards section
   let selectedReward = ''; // Selected reward for redemption
@@ -117,7 +118,7 @@
 
   // On Mount
   onMount(() => {
-    handleNavClick('courses'); // Set the default section on page load
+    handleNavClick('home'); // Set the default section on page load
   });
 </script>
 
@@ -132,7 +133,7 @@
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ['Courses', 'Chatbots', 'Quizzes', 'Rewards', 'Contact'] as link}
+    {#each ['Home', 'Courses', 'Chatbots', 'Quizzes', 'Rewards', 'Contact'] as link}
       <a
         on:click={() => handleNavClick(link.toLowerCase())}
         class="text-white hover:text-blue-300 border-b-2 border-transparent hover:border-white px-4 py-2 transition-all duration-300 cursor-pointer"
@@ -144,6 +145,7 @@
 
   <!-- Right Section Buttons -->
   <div class="flex space-x-4 mt-4 md:mt-0">
+
     <button 
       on:click={() => handleNavClick('courses')}
       class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
@@ -157,10 +159,53 @@
   </div>
 </header>
 
+
 <!-- Main Content -->
 <main class="pt-20"> <!-- Add padding-top to offset the fixed navbar -->
   
+  <section id="home" class:hidden={activeSection !== 'home'}
+    class="hero min-h-screen flex items-center justify-center bg-[#0f535c] text-white"
+  >
+    <div
+      class="container mx-auto flex flex-col md:flex-row items-center justify-between p-8"
+    >
+      <!-- Left Side: Text Content -->
+      <div class="text-content md:w-1/2 text-center md:text-left">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+          Welcome to <span class="text-[#E1AD01]"
+          >Anti-Corrupt AI </span
+        >Expand your knowledge on corruption using 
+        </h1>
+        <p class="text-lg md:text-xl mb-6">
+          Leveraging the power of blockchain and AI to enhance learning and create
+          an overall corruption free environment all over the world.
+        </p>
+        <!-- Styled Buttons -->
+        <div class="flex justify-center md:justify-start space-x-4">
+          <button
+            
+            class="bg-[#E1AD01] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            Sign Up
+          </button>
+          <button 
+           
+            class="bg-[#00C4CC] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105">
+            Go to learning
+          </button>
+        </div>
+      </div>
+  
+      <!-- Right Side: Image or Graphic -->
+      <div class="image-content md:w-1/2 mt-8 md:mt-0">
+        <img src={logo} alt="LLM Hero Graphic" class="w-150 h-auto rounded-lg" />
+        <img src={hero} alt="LLM Hero Graphic" class="w-150 h-auto rounded-lg" />
+      </div>
+    </div>
+  </section>
+  
   <!-- Courses Section -->
+  
   <section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
     <div class="container mx-auto text-center">
       <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Available Courses</h2>
