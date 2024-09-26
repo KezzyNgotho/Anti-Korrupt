@@ -4,17 +4,115 @@
   import { onMount } from 'svelte';
   import logo from '../../../public/image8.png';
   import Modal from './Modal1.svelte'; // Ensure Modal.svelte is correctly imported
-
+ 
+  import { HttpAgent, Actor } from '@dfinity/agent';
+  //import { idlFactory as DevinciIDL } from '../../home/keziah/PRETORIA/Hackathon202409AI/src/declarations';
+  import {idlFactory as DevinciIDL} from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend'
   let activeSection = 'courses'; // Default section
   let selectedSort = 'default';
+   let courses = [];
+    let courseCanister;  
+    let Devincibackend;
   // Function to handle navigation clicks
   function handleNavClick(section) {
     activeSection = section;
     document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
   }
 
+/* 
+ import { HttpAgent, Actor } from '@dfinity/agent';
+  import { idlFactory as DevinciIDL } from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend';
+ */
+ /*  let activeSection = 'courses'; // Default section
+  let selectedSort = 'default';
+  let courses = [];
+  let courseCanister; */
+  
+  let errorMessage = '';
+
+  
+
+  // Initialize backend
+  async function initializeBackend() {
+    try {
+      const agent = new HttpAgent();
+      if (process.env.NODE_ENV !== "production") {
+        await agent.fetchRootKey(); // Only in non-production environment
+      }
+      // Initialize the Actor for the backend canister
+      Devincibackend = Actor.createActor(DevinciIDL, {
+        agent,
+        canisterId: "bd3sg-teaaa-aaaaa-qaaba-cai", // Replace with your actual canister ID
+      });
+      console.log("Backend initialized");
+    } catch (error) {
+      console.error("Error initializing backend:", error);
+      errorMessage = `Error initializing backend: ${error.message}`;
+    }
+  }
+
+  // Fetch courses from the backend
+  async function fetchCourses() {
+    if (!courseCanister) {
+      console.error('Course canister is not initialized');
+      return;
+    }
+    try {
+      courses = await Devincibackend.listCourses(); // Call the backend query function
+      console.log('Courses fetched:', courses);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      errorMessage = `Error fetching courses: ${error.message}`;
+    }
+  }
+
+  // Call fetchCourses on mount to populate courses data
+  onMount(async () => {
+    await initializeBackend(); // Ensure backend is initialized first
+    await fetchCourses(); // Then fetch courses
+  });
+
+  // Call fetchCourses on mount to populate courses data
+  onMount(() => {
+    fetchCourses();
+  });
+
+  let leaderboard = [
+    { name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
+    { name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
+    { name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
+    { name: 'Dave', avatar: 'https://via.placeholder.com/40', score: 90 },
+    { name: 'Eve', avatar: 'https://via.placeholder.com/40', score: 80 },
+  ];
+
+  // Sample data for top users
+  let topUsers = [
+    { rank: 1, name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
+    { rank: 2, name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
+    { rank: 3, name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
+  ];
+
+  // User's progress percentage (for progress tracker)
+  let userProgressPercentage = 75; // Example value
+
+  // Variable for selected timeframe
+  let timeFrame = 'weekly';
+
+  // Function to refresh the leaderboard based on selected timeframe
+  function refreshLeaderboard() {
+    // Logic to update the leaderboard based on the selected timeframe
+    // This is where you would normally fetch new data based on the timeFrame
+    console.log(`Leaderboard refreshed for ${timeFrame} timeframe.`);
+  }
+
+  // Example of how to handle the change in timeframe
+  $: {
+    refreshLeaderboard(); // Call refresh whenever the timeFrame changes
+  }
+
+
   // Mock data for courses
-  let courses = [
+/*   let courses = [
     {
       id: 'intro-to-ai-blockchain',
       title: 'Introduction to AI and Blockchain',
@@ -40,7 +138,7 @@
       tags: ['Blockchain', 'Development', 'Ethereum']
     }
   ];
-
+ */
   let seeAll = false;
   let activeTab = 'overview';
   let selectedReward = '';
@@ -78,11 +176,7 @@
   let showModal = false;
   let modalContent = {};
 
-  let leaderboard = [
-    { name: 'John Doe', xp: 950 },
-    { name: 'Jane Smith', xp: 820 },
-    { name: 'Alex Johnson', xp: 780 }
-  ];
+
 
   let tags = ['All', 'AI', 'Blockchain', 'DeFi', 'Fintech', 'Machine Learning', 'Ethics', 'Beginner', 'Intermediate', 'Advanced'];
 
@@ -192,7 +286,7 @@
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ['Courses', 'Chatbots', 'Contact'] as link}
+    {#each ['Courses', 'Chatbots','quizzes', 'Contact'] as link}
       <a
         on:click={() => handleNavClick(link.toLowerCase())}>
       </a>
@@ -234,6 +328,7 @@
 
 <section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
   <div class="container mx-auto px-4">
+
     <!-- Courses Section Header -->
     <div class="text-center mb-12">
       <h2 class="text-4xl font-extrabold text-[#0077b6] mb-4 transition duration-300 hover:underline">
@@ -272,79 +367,34 @@
     </div>
 
     <!-- Courses Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {#each filteredCourses as course}
-        <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 transform hover:scale-105 flex flex-col">
+        <div class="bg-white p-6 rounded-lg shadow-lg transition-transform duration-300 transform hover:scale-105 flex flex-col">
           <!-- Course Image -->
-          <img src={course.image} alt={course.title} class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105" />
+          <img src={course.image || 'default-image.jpg'} alt={course.title} class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105" />
 
           <!-- Course Title -->
           <h3 class="text-xl font-semibold text-[#0077b6] mb-1">{course.title}</h3>
 
-          <!-- Course Tags -->
-          <div class="flex flex-wrap gap-1 mb-2">
-            {#each course.tags as tag}
-              <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">{tag}</span>
-            {/each}
-          </div>
-
           <!-- Course Description -->
-          <p class="text-gray-800 mb-3 flex-grow">{course.description}</p>
-
-          <!-- Progress Bar -->
-          <div class="h-2 bg-gray-300 rounded-full mb-3">
-            <div class="h-full bg-[#0077b6] rounded-full" style="width: {userProgress[course.id] || 0}%"></div>
-          </div>
-
-          <!-- Ratings -->
-          <div class="flex items-center mb-3">
-            <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.154c.969 0 1.371 1.24.588 1.81l-3.364 2.448a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118L10 13.347l-3.364 2.448c-.785.57-1.84-.197-1.54-1.118l1.286-3.957a1 1 0 00-.364-1.118L2.13 9.384c-.783-.57-.38-1.81.588-1.81h4.154a1 1 0 00.95-.69l1.286-3.957z" />
-            </svg>
-            <span class="ml-1 text-gray-700 font-semibold">{course.rating} / 5</span>
-          </div>
-
-          <!-- Share Links -->
-          <!-- Share Links -->
-<!-- Share Links -->
-<div class="flex justify-between mt-4">
-  <a href={`https://twitter.com/share?url=${encodeURIComponent(course.url)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on Twitter`}>
-    <i class="fab fa-twitter mr-2"></i> <!-- Twitter Icon -->
-    Share on Twitter
-  </a>
-  <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(course.url)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on Facebook`}>
-    <i class="fab fa-facebook-f mr-2"></i> <!-- Facebook Icon -->
-    Share on Facebook
-  </a>
-  <a href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(course.url)}&title=${encodeURIComponent(course.title)}`} target="_blank" rel="noopener noreferrer" class="flex items-center text-[#0077b6] hover:underline" aria-label={`Share ${course.title} on LinkedIn`}>
-    <i class="fab fa-linkedin-in mr-2"></i> <!-- LinkedIn Icon -->
-    Share on LinkedIn
-  </a>
-</div>
-
-<!-- Include Font Awesome CDN in your HTML file if you haven't already -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
+          <p class="text-gray-800 mb-3 flex-grow">{course.summary}</p>
 
           <!-- Start Learning Button -->
-        
           <button
-          on:click={startLearning} 
-          class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
-          Start Learning
-        </button>
-        
-       
+            on:click={() => startLearning(course.id)} 
+            class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+            Start Learning
+          </button>
         </div>
       {/each}
     </div>
-    
-  </div>
 
-  <div class="mt-4">
-    <a href="/all-courses" class="text-[#0077b6] font-bold hover:underline" aria-label="View All Courses">
-      View All Courses
-    </a>
+    <div class="mt-4 text-center">
+      <a href="/all-courses" class="text-[#0077b6] font-bold hover:underline" aria-label="View All Courses">
+        View All Courses
+      </a>
+    </div>
+
   </div>
 </section>
 
