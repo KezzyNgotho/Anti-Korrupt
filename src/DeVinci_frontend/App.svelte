@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Router, Route } from 'svelte-spa-router';
+  import Router from 'svelte-spa-router';
   import { onMount } from 'svelte';
   import { store } from './store'; // Ensure your store is correctly set up
 
@@ -33,14 +33,5 @@
 </script>
 
 <div class="App">
-  <Router {routes}>
-    <Route path="/" component={LandingPage} />
-    <Route path="/login" component={Login} />
-    <Route path="/signup" component={SignUp} />
-    <Route path="/dashboard" component={Dashboard} />
-    <!-- Uncomment or add additional routes as needed -->
-    <!-- <Route path="/about" component={About} />
-    <Route path="/brand" component={Brand} />
-    <Route path="*" component={NotFound} /> -->
-  </Router>
+  <Router {routes} />
 </div>
