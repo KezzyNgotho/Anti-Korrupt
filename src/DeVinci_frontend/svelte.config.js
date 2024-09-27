@@ -1,7 +1,19 @@
-const sveltePreprocess = require("svelte-preprocess")
+// @ts-nocheck
+// svelte.config.js
+// @ts-ignore
+import adapter from '@sveltejs/adapter-auto';
+import sveltePreprocess from 'svelte-preprocess';
 
-module.exports = {
-  // Consult https://github.com/sveltejs/svelte-preprocess
-  // for more information about preprocessors
-  preprocess: sveltePreprocess({ postcss: true }),
-}
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+  preprocess: sveltePreprocess({
+    postcss: true,
+  }),
+
+  kit: {
+    adapter: adapter(),
+    // Other SvelteKit configurations
+  }
+};
+
+export default config;
