@@ -18,64 +18,82 @@
     activeSection = section;
     document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
   }
-
-/* 
- import { HttpAgent, Actor } from '@dfinity/agent';
-  import { idlFactory as DevinciIDL } from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend';
- */
- /*  let activeSection = 'courses'; // Default section
-  let selectedSort = 'default';
-  let courses = [];
-  let courseCanister; */
-  
   let errorMessage = '';
 
   
+// Backend initialization
 
-  // Initialize backend
-  async function initializeBackend() {
-    try {
-      const agent = new HttpAgent();
-      if (process.env.NODE_ENV !== "production") {
-        await agent.fetchRootKey(); // Only in non-production environment
-      }
-      // Initialize the Actor for the backend canister
-      Devincibackend = Actor.createActor(DevinciIDL, {
-        agent,
-        canisterId: "bd3sg-teaaa-aaaaa-qaaba-cai", // Replace with your actual canister ID
-      });
-      console.log("Backend initialized");
-    } catch (error) {
-      console.error("Error initializing backend:", error);
-      errorMessage = `Error initializing backend: ${error.message}`;
+async function initializeBackend() {
+  try {
+    const agent = new HttpAgent({
+      host: "https://ic0.app" // Use this for the Internet Computer mainnet
+    });
+
+    // Fetch root key only in development or local environments
+    if (process.env.NODE_ENV !== "production") {
+      await agent.fetchRootKey();
     }
-  }
 
-  // Fetch courses from the backend
-  async function fetchCourses() {
-    if (!courseCanister) {
-      console.error('Course canister is not initialized');
+    // Initialize the Actor for the backend canister
+    Devincibackend = Actor.createActor(DevinciIDL, {
+      agent,
+      canisterId: "pq6ox-maaaa-aaaak-albia-cai", // Replace with your actual canister ID
+    });
+
+    console.log("Backend initialized successfully.");
+  } catch (error) {
+    console.error("Error initializing backend:", error);
+    errorMessage = `Error initializing backend: ${error.message}`;
+  }
+}
+
+/* async function fetchCourses(retries = 3) {
+  try {
+    if (!Devincibackend) {
+      console.error("Devincibackend is not initialized");
       return;
     }
-    try {
-      courses = await Devincibackend.listCourses(); // Call the backend query function
-      console.log('Courses fetched:', courses);
-    } catch (error) {
+
+    const fetchedCourses = await Devincibackend.listCourses(); // Call the method from the backend
+    // Update your store or state with the fetched courses
+    console.log("Fetched courses:", fetchedCourses);
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Retrying fetchCourses... Attempts left: ${retries}`);
+      await fetchCourses(retries - 1); // Retry the fetch
+    } else {
       console.error('Error fetching courses:', error);
       errorMessage = `Error fetching courses: ${error.message}`;
     }
   }
+} */
+async function fetchCourses() {
+    try {
+      const response = await Devincibackend.listCourses(); // Adjust based on your actual method
+      filteredCourses = response; // Set the fetched courses to filteredCourses
+      tags = [...new Set(response.map(course => course.tag))]; // Assuming each course has a tag property
+      filterCourses(); // Call filter to initially set the display based on current filters
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+    }
+  }
+// Call initializeBackend and fetchCourses on mount to populate courses data
+onMount(async () => {
+  await initializeBackend(); // Ensure backend is initialized first
+  await fetchCourses();
+});
 
-  // Call fetchCourses on mount to populate courses data
-  onMount(async () => {
-    await initializeBackend(); // Ensure backend is initialized first
-    await fetchCourses(); // Then fetch courses
-  });
 
-  // Call fetchCourses on mount to populate courses data
-  onMount(() => {
-    fetchCourses();
-  });
+
+
+
+
+
+
+
+
+
+
 
   let leaderboard = [
     { name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
@@ -111,34 +129,7 @@
   }
 
 
-  // Mock data for courses
-/*   let courses = [
-    {
-      id: 'intro-to-ai-blockchain',
-      title: 'Introduction to AI and Blockchain',
-      description: 'Explore the foundational concepts of AI and blockchain technologies.',
-      image: '/images/course1.jpg',
-      rating: 4.5,
-      tags: ['AI', 'Blockchain', 'Beginner']
-    },
-    {
-      id: 'advanced-ai-techniques',
-      title: 'Advanced AI Techniques',
-      description: 'Learn advanced AI algorithms and their applications in real-world scenarios.',
-      image: '/images/course2.jpg',
-      rating: 4.8,
-      tags: ['AI', 'Advanced', 'Machine Learning']
-    },
-    {
-      id: 'blockchain-development',
-      title: 'Blockchain Development Essentials',
-      description: 'Master the essentials of blockchain development and smart contract programming.',
-      image: '/images/course3.jpg',
-      rating: 4.6,
-      tags: ['Blockchain', 'Development', 'Ethereum']
-    }
-  ];
- */
+  
   let seeAll = false;
   let activeTab = 'overview';
   let selectedReward = '';
@@ -325,7 +316,6 @@
     </a>
   </div>
 </section> -->
-
 <section id="courses" class="py-16 bg-gray-50" class:hidden={activeSection !== 'courses'}>
   <div class="container mx-auto px-4">
 
@@ -368,25 +358,29 @@
 
     <!-- Courses Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {#each filteredCourses as course}
-        <div class="bg-white p-6 rounded-lg shadow-lg transition-transform duration-300 transform hover:scale-105 flex flex-col">
-          <!-- Course Image -->
-          <img src={course.image || 'default-image.jpg'} alt={course.title} class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105" />
+      {#if filteredCourses.length > 0}
+        {#each filteredCourses as course}
+          <div class="bg-white p-6 rounded-lg shadow-lg transition-transform duration-300 transform hover:scale-105 flex flex-col">
+            <!-- Course Image -->
+            <img src={course.image || 'default-image.jpg'} alt={course.title} class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105" />
 
-          <!-- Course Title -->
-          <h3 class="text-xl font-semibold text-[#0077b6] mb-1">{course.title}</h3>
+            <!-- Course Title -->
+            <h3 class="text-xl font-semibold text-[#0077b6] mb-1">{course.title}</h3>
 
-          <!-- Course Description -->
-          <p class="text-gray-800 mb-3 flex-grow">{course.summary}</p>
+            <!-- Course Description -->
+            <p class="text-gray-800 mb-3 flex-grow">{course.summary}</p>
 
-          <!-- Start Learning Button -->
-          <button
-            on:click={() => startLearning(course.id)} 
-            class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
-            Start Learning
-          </button>
-        </div>
-      {/each}
+            <!-- Start Learning Button -->
+            <button
+              on:click={() => startLearning(course.id)} 
+              class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105">
+              Start Learning
+            </button>
+          </div>
+        {/each}
+      {:else}
+        <p class="text-center text-gray-600">No courses available. Try adjusting your search or filters.</p>
+      {/if}
     </div>
 
     <div class="mt-4 text-center">
@@ -398,8 +392,6 @@
   </div>
 </section>
 
-
-  
   <!-- Chatbots Section -->
  
     <section id="chatgpt-interface" class="py-16 bg-gray-100" class:hidden={activeSection !== 'chatbots'}>
