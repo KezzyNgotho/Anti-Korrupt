@@ -10,6 +10,10 @@
   let selectedReward = ""; // Selected reward for redemption
   let userTokens = 50; // Example token count
   let quizTimer = 60; // Quiz timer in seconds
+  let principalID = "";
+  let owners = []; // List of owners with permissions
+  // let selectedView = "resources";
+  let selectedTab = "resources";
 
   // Variables for toggling views and state
   let showResources = false;
@@ -54,10 +58,21 @@
   function switchView(view) {
     selectedView = view;
   }
+  function switchTab(tab) {
+    selectedTab = tab;
+  }
+
+  function updateCourse(course) {
+    // Logic to update an existing course
+    console.log("Updating course: ", course);
+  }
 
   function handleResourceUpload(event) {
     newResource.file = event.target.files[0];
   }
+
+
+
 
   function addNewResource() {
     if (newResource.title && newResource.type && newResource.file) {
@@ -203,6 +218,13 @@
     }
   }
 
+
+  function addPermission() {
+    // Add permission logic with principalID
+    console.log("Adding permission for principal ID: ", principalID);
+  }
+
+
   // Start Learning a Course
   function startLearning(courseId) {
     activeSection = "chatgpt-interface";
@@ -310,8 +332,10 @@
   </div>
 </header>
 
+
+
 <!-- Main Content -->
-<main class="pt-20">
+<main class="">
   <!-- Add padding-top to offset the fixed navbar -->
 
   <section
@@ -367,7 +391,7 @@
 
   <section
     id="courses"
-    class="py-16 bg-gray-50"
+    class="py-16 bg-gray-50 min-h-screen"
     class:hidden={activeSection !== "courses"}
   >
     <div class="container mx-auto text-center">
@@ -455,7 +479,7 @@
 
   <!-- Chatbots Section -->
   <section
-    id="chatgpt-interface"
+    id="chatgpt-interface min-h-screen"
     class="py-16 bg-gray-100"
     class:hidden={activeSection !== "chatbots"}
   >
@@ -529,7 +553,7 @@
   <!-- Quizzes Section -->
   <section
     id="quizzes"
-    class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]"
+    class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] min-h-screen"
     class:hidden={activeSection !== "quizzes"}
   >
     <div class="container mx-auto text-center">
@@ -563,7 +587,7 @@
   <!-- Rewards Section -->
   <section
     id="rewards"
-    class="py-16 bg-gray-100"
+    class="py-16 bg-gray-100 min-h-screen"
     class:hidden={activeSection !== "rewards"}
   >
     <div class="container mx-auto">
@@ -749,7 +773,7 @@
   <!-- Contact Section -->
   <section
     id="contact"
-    class="py-16 bg-gray-50"
+    class="py-16 bg-gray-50 min-h-screen"
     class:hidden={activeSection !== "contact"}
   >
     <div class="container mx-auto text-center">
@@ -794,12 +818,31 @@
   </section>
 
   <!-- Admin section -->
-  <section
-    id="admin"
-    class="py-16 bg-[#0f535c] text-white"
-    class:hidden={activeSection !== "admin"}
-  >
-    <div class="container mx-auto space-y-8">
+<section
+id="admin"
+class="py-16 bg-[#0f535c] text-white"
+class:hidden={activeSection !== "admin"}
+>
+<div class="container mx-auto space-y-8">
+  <!-- Tab Navigation -->
+  <div class="flex justify-center space-x-8 mb-6">
+    <button
+      class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedTab === 'courses' ? 'bg-[#E1AD01] text-white' : 'border-gray-300'}"
+      on:click={() => switchTab("courses")}
+    >
+      Courses
+    </button>
+    <button
+      class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedTab === 'permissions' ? 'bg-[#E1AD01] text-white' : 'border-gray-300'}"
+      on:click={() => switchTab("permissions")}
+    >
+      Permissions
+    </button>
+  </div>
+
+  <!-- Courses Section -->
+  {#if selectedTab === "courses"}
+    <div class="space-y-8">
       <!-- Add New Course Section -->
       <div
         class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8"
@@ -837,9 +880,7 @@
             <div class="text-center mb-5">
               <h2 class="text-2xl font-bold">{course.title}</h2>
               <p class="mt-2 text-gray-700">{course.description}</p>
-              <span class="px-3 py-1 text-white bg-[#E1AD01] rounded"
-                >Approved</span
-              >
+              <span class="px-3 py-1 text-white bg-[#E1AD01] rounded">Approved</span>
             </div>
 
             <div class="flex justify-around mb-5">
@@ -853,12 +894,20 @@
               </div>
             </div>
 
-            <button
-              class="w-full bg-[#0f535c] text-white py-2 rounded-md hover:bg-[#E1AD01] transition-all duration-200"
-              on:click={handleViewCourse}
-            >
-              View Course
-            </button>
+            <div class="flex justify-center space-x-4">
+              <button
+                class="bg-[#0f535c] text-white py-2 px-4 rounded-md hover:bg-[#E1AD01] transition-all duration-200"
+                on:click={handleViewCourse}
+              >
+                View Course
+              </button>
+              <button
+                class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-all duration-200"
+                on:click={() => updateCourse(course)}
+              >
+                Update Course
+              </button>
+            </div>
           </div>
         </div>
       {/each}
@@ -897,18 +946,24 @@
                 <p class="text-gray-400 mt-4">Resource Type: {resource.type}</p>
 
                 <div class="mt-6">
-                  <span class="px-3 py-1 bg-gray-700 rounded"
-                    >{resource.type}</span
-                  >
+                  <span class="px-3 py-1 bg-gray-700 rounded">{resource.type}</span>
                 </div>
 
                 <div class="mt-8">
                   <a href={resource.url} target="_blank">
-                    <button
-                      class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-all duration-200"
-                    >
-                      View Resource
-                    </button>
+                    <div class="flex space-x-4">
+                      <button
+                        class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                      >
+                        View Resource
+                      </button>
+                      <button
+                        class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                      >
+                        Delete Resource
+                      </button>
+                    </div>
+                    
                   </a>
                 </div>
               </div>
@@ -993,9 +1048,125 @@
         {/if}
       {/if}
     </div>
-  </section>
+  {/if}
+  
+  <!-- Permissions Section (Already existing) -->
+  {#if selectedTab === "permissions"}
+    <div class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8 min-h-screen">
+      <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">Manage Permissions</h3>
+      <form on:submit|preventDefault={addPermission} class="space-y-4">
+        <input
+          type="text"
+          placeholder="Enter Principal ID"
+          class="block w-full p-2 border rounded-lg"
+          bind:value={principalID}
+          required
+        />
+        <button
+          type="submit"
+          class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+        >
+          Add Permission
+        </button>
+      </form>
+
+      <!-- Display Owners -->
+      <h4 class="text-xl font-bold mt-6">Owners with Permissions:</h4>
+      <ul class="list-disc list-inside text-gray-700 mt-4">
+        {#each owners as owner}
+          <li>{owner}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+</div>
+</section>
+
+<script>
+let selectedTab = "courses"; // Set initial tab to 'courses'
+let courses = [
+  {
+    title: "UNODC Course",
+    description: "Introduction to anti-corruption policies",
+  },
+]; // Example courses array
+let newCourse = { title: "", description: "" };
+let newResource = { title: "", type: "", file: null };
+let resources = []; // Example resources array
+let questions = []; // Example questions array
+let principalID = "";
+let owners = []; // List of owners with permissions
+
+let showResources = false;
+let selectedView = "resources"; // 'resources' or 'questions'
+
+function switchTab(tab) {
+  selectedTab = tab;
+}
+
+function switchView(view) {
+  selectedView = view;
+}
+
+function addNewCourse() {
+  if (newCourse.title && newCourse.description) {
+    courses.push({ ...newCourse });
+    newCourse = { title: "", description: "" }; // Reset form fields
+  } else {
+    alert("Please complete the form.");
+  }
+}
+
+function updateCourse(course) {
+  console.log("Updating course: ", course);
+}
+
+function handleViewCourse() {
+  console.log("Viewing course.");
+}
+
+function addPermission() {
+  if (principalID && !owners.includes(principalID)) {
+    owners.push(principalID);
+    principalID = ""; // Reset input field
+  } else {
+    alert("Please enter a valid Principal ID.");
+  }
+}
+
+function addNewResource() {
+  if (newResource.title && newResource.type && newResource.file) {
+    resources.push({
+      title: newResource.title,
+      type: newResource.type,
+      url: URL.createObjectURL(newResource.file),
+    });
+    newResource = { title: "", type: "", file: null }; // Reset form
+  } else {
+    alert("Please complete all fields.");
+  }
+}
+
+function handleResourceUpload(event) {
+  newResource.file = event.target.files[0];
+}
+
+function generateRandomQuestion() {
+  const randomQuestion = {
+    question: "What is AI's role in the digital age?",
+    options: [
+      { text: "To replace human jobs", isCorrect: false },
+      { text: "To assist in decision-making", isCorrect: true },
+      { text: "To manage databases", isCorrect: false },
+      { text: "To generate random numbers", isCorrect: false },
+    ],
+  };
+  questions.push(randomQuestion);
+}
+</script>
+
   <!-- Footer -->
-  <footer class="bg-white text-[#0f535c] py-6 text-center">
+  <footer class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-6 text-center">
     <div class="container mx-auto">
       <p>&copy; 2024 LLMVerse. All rights reserved.</p>
       <p class="mt-2">
