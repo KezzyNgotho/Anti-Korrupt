@@ -68,7 +68,7 @@ shared ({ caller }) actor class Backend() {
     let runs = Map.filter(
       threadRunQueue,
       thash,
-      func(k : Text, v : ThreadRun) : Bool {
+      func(_ : Text, v : ThreadRun) : Bool {
         return v.threadId == threadId and v.status == #InProgress;
       },
     );
@@ -313,7 +313,7 @@ shared ({ caller }) actor class Backend() {
   };
 
   // Register a new user
-  public shared ({ caller }) func registerUser(fullname : Text) : async Result<Text, ApiError> {
+  public shared ({ caller }) func loginOrRegiser(fullname : Text) : async Result<Text, ApiError> {
     let userId = Utils.hashText(fullname);
     let user = Map.get(members, thash, userId);
     var userP : ?Principal = null;
@@ -323,8 +323,8 @@ shared ({ caller }) actor class Backend() {
     };
 
     switch (user) {
-      case (?_) {
-        return #err(#Other("User already registered"));
+      case (?u) {
+        return #ok(u.id);
       };
       case (null) {
         let newUser = {
@@ -335,7 +335,34 @@ shared ({ caller }) actor class Backend() {
           enrolledCourses = Vector.new<EnrolledCourse>();
         };
         Map.set(members, thash, userId, newUser);
-        return #ok("User registered successfully");
+        return #ok(userId);
+      };
+    };
+  };
+
+  // Connect user to principal
+  public shared ({ caller }) func connectUserToPrincipal(userId : Text) : async Result<Text, ApiError> {
+    let user = Map.get(members, thash, userId);
+    if (not Principal.isAnonymous(caller)) {
+      return #err(#Unauthorized);
+    };
+    switch (user) {
+      case (?u) {
+        if (u.principal != null) {
+          return #err(#Other("User already connected to principal"));
+        };
+        let newUser = {
+          id = u.id;
+          fullname = u.fullname;
+          principal = ?caller;
+          var claimableTokens = u.claimableTokens;
+          enrolledCourses = u.enrolledCourses;
+        };
+        Map.set(members, thash, userId, newUser);
+        #ok("User connected to principal successfully");
+      };
+      case (null) {
+        return #err(#NotFound("User not found"));
       };
     };
   };
@@ -751,6 +778,78 @@ shared ({ caller }) actor class Backend() {
     };
   };
 
+  // Claim tokens
+  public shared ({ caller }) func claimTokens(userId : Text) : async Result<Text, ApiError> {
+    if (Principal.isAnonymous(caller)) {
+      return #err(#Unauthorized);
+    };
+    let user = Map.get(members, thash, userId);
+    switch (user) {
+      case (?member) {
+        switch (member.principal) {
+          case (null) {
+            return #err(#Other("User not connected to principal"));
+          };
+          case (?p) {
+            if (Principal.notEqual(caller, p)) {
+              return #err(#Unauthorized);
+            };
+            if (member.claimableTokens == 0) {
+              return #err(#Other("No tokens to claim"));
+            };
+
+            let icrc1Canister = try {
+              #ok(await Utils.createIcrcActor(icrc1TokenCanisterId_));
+            } catch e #err(e);
+
+            // TODO: Make this more secure by using sub accounts instead
+            switch (icrc1Canister) {
+              case (#ok(icrc1Actor)) {
+                // Make the icrc1 intercanister transfer call, catching if error'd:
+                let response : Result<ICRC1.TransferResult, Text> = try {
+                  let decimal = 100000000;
+                  #ok(await icrc1Actor.icrc1_transfer({ amount = member.claimableTokens * decimal; created_at_time = null; from_subaccount = null; fee = null; memo = null; to = { owner = caller; subaccount = null } }));
+                } catch (e) {
+                  #err(Error.message(e));
+                };
+
+                // Parse the results of the icrc1 intercansiter transfer call:
+                switch (response) {
+                  case (#ok(transferResult)) {
+                    switch (transferResult) {
+                      case (#Ok _) {};
+                      case (#Err _) {
+                        return #err(
+                          #Other("The icrc1 transfer call could not be completed as requested.")
+                        );
+                      };
+                    };
+                  };
+                  case (#err(k)) {
+                    return #err(
+                      #Other("The intercanister icrc1 transfer call caught an error: " # k)
+                    );
+                  };
+                };
+
+                // Reset claimable tokens
+                member.claimableTokens := 0;
+                Map.set(members, thash, userId, member);
+                #ok("Tokens claimed successfully");
+              };
+              case (#err(_)) {
+                return #err(#Other("Internal transfer error"));
+              };
+            };
+          };
+        };
+      };
+      case (null) {
+        return #err(#NotFound("User not found"));
+      };
+    };
+  };
+
   // Http response transformer
   public query func transform(raw : Types.TransformArgs) : async Types.CanisterHttpResponsePayload {
     let transformed : Types.CanisterHttpResponsePayload = {
@@ -775,7 +874,7 @@ shared ({ caller }) actor class Backend() {
   };
 
   // Send new message in an enrolled course chat
-  public shared func sendMessage(threadId : Text, prompt : Text, userId : Text) : async Result<SendMessageStatus, SendMessageStatus> {
+  public shared func sendMessage(threadId : Text, prompt : Text, extraText : Text, userId : Text) : async Result<SendMessageStatus, SendMessageStatus> {
     let user = Map.get(members, thash, userId);
     switch (user) {
       case (?member) {
@@ -803,7 +902,7 @@ shared ({ caller }) actor class Backend() {
 
             var data = #Object([
               ("role", #String("user")),
-              ("content", #String(prompt)),
+              ("content", #String("Prompt: " # prompt # "\n\n" # extraText)),
             ]);
 
             let headers : ?[Types.HttpHeader] = ?[
@@ -842,10 +941,24 @@ shared ({ caller }) actor class Backend() {
             Vector.put(member.enrolledCourses, enrolledCourseIdx, eCourse);
             Map.set(members, thash, userId, member);
 
+            var courseTitle = "";
+            let course = _getCourse(eCourse.id);
+            switch (course) {
+              case (?c) {
+                courseTitle := c.title;
+              };
+              case (null) {};
+            };
+
+            // Create instruction
+            var instruction = "Teach me about /TOPIC/. I want to learn about the topic in a way that's engaging and interactive.\nMy name is /NAME/\nPlease ask me questions, provide examples, and gauge my understanding as we go along. I'll respond with my thoughts and questions, and you can adjust your teaching approach accordingly. Let's get started!\n\nDesired Response:\nThe model should be able to provide references to the pages in the document where more information can be found.\nThe model should respond with a question or request that gauges the user's prior knowledge or understanding of the topic.\nThe model should provide examples or analogies to help illustrate key concepts.\nThe model should ask follow-up questions to ensure the user understands the material.\nThe model should adjust its teaching approach based on the user's responses.\nThe model should only respond to questions related to what it has been trained with using file search.\nThe model should refer to the user by their name, if the model does not know the user's name the model can ask.\nThe model should respond to questions not related to corruption with a message like \"I\'m here to help you learn about /TOPIC/. Let\'s focus on that for now.\" Any variant of it is okay.\nThe model response should be in markdown format.\n\nEvaluation Criteria:\nThe model\'s ability to engage the user in a conversation about the topic.\nThe model\'s ability to gauge the user\'s understanding and adjust its teaching approach accordingly.\nThe model\'s ability to provide clear and concise explanations of key concepts.\nThe model\'s ability to use examples and analogies to illustrate complex ideas.";
+            instruction := Text.replace(instruction, #text "/TOPIC/", courseTitle);
+            instruction := Text.replace(instruction, #text "/NAME/", member.fullname);
+
             // Create new run
             data := #Object([
               ("assistant_id", #String(ASSISTANT_ID)),
-              ("instructions", #String("You are a helpful assistant, here to train users on the impacts of corruption and how to mitigate them based on the files you have been trained with and all your responses must be in markdown format")),
+              ("instructions", #String(instruction)),
             ]);
             let runResponse = await Request.post(
               "https://idempotent-proxy-cf-worker.zensh.workers.dev/v1/threads/" # threadId # "/runs",

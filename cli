@@ -1,0 +1,372 @@
+#!/bin/bash
+
+# Define the CLI commands and their corresponding functions
+declare -A commands
+commands[addAcls]="addAcls"
+commands[addQuestion]="addQuestion"
+commands[changeApiKey]="changeApiKey"
+commands[changeOwner]="changeOwner"
+commands[check_course_has_memory_vectors_entry]="check_course_has_memory_vectors_entry"
+commands[listCourses]="listCourses"
+commands[createCourse]="createCourse"
+commands[getCourseQuestions]="getCourseQuestions"
+commands[getOwner]="getOwner"
+commands[getProfile]="getProfile"
+commands[getRandomCourseQuestions]="getRandomCourseQuestions"
+commands[enrollCourse]="enrollCourse"
+commands[generateRandomNumber]="generateRandomNumber"
+commands[getCourseResources]="getCourseResources"
+commands[createResource]="createResource"
+commands[getRunMessage]="getRunMessage"
+commands[getRunQuestions]="getRunQuestions"
+commands[getRunStatus]="getRunStatus"
+commands[getRunsInQueue]="getRunsInQueue"
+commands[getUserEnrolledCourse]="getUserEnrolledCourse"
+commands[removeAcls]="removeAcls"
+commands[removeQuestion]="removeQuestion"
+commands[removeResource]="removeResource"
+commands[sendMessage]="sendMessage"
+commands[setAssistantId]="setAssistantId"
+commands[setRunProcess]="setRunProcess"
+commands[set_icrc1_token_canister]="set_icrc1_token_canister"
+commands[updateCourse]="updateCourse"
+commands[getAcls]="getAcls"
+commands[generateQuestionsForCourse]="generateQuestionsForCourse"
+
+# Define the functions for each command
+addAcls() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 addAcls <a>"
+        echo ""
+        echo "<a> is the principal to add to the ACLs."
+        return 1
+    fi
+    dfx canister call backend addAcls "(principal \"$1\")"
+}
+
+addQuestion() {
+    if [ $# -lt 4 ]; then
+        echo "Usage: $0 addQuestion <course_id> <question_id> <correct_option> <description> [options...]"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        echo "<question_id> is the ID of the question."
+        echo "<correct_option> is the correct option."
+        echo "<description> is the description of the question."
+        echo "[options...] are the options (option number and description)."
+        return 1
+    fi
+
+    course_id=$1
+    question_id=$2
+    correct_option=$3
+    description=$4
+    shift 4
+
+    options=()
+    while [ $# -gt 0 ]; do
+        if [ $# -lt 2 ]; then
+            echo "Error: Options must be provided in pairs (option number and description)."
+            return 1
+        fi
+        option_number=$1
+        option_description=$2
+        options+=("(record { option = $option_number; description = \"$option_description\" })")
+        shift 2
+    done
+
+    options_str=$(IFS=';'; echo "${options[*]}")
+    dfx canister call backend addQuestion "(\"$course_id\", record { id = \"$question_id\"; correctOption = $correct_option; description = \"$description\"; options = vec { $options_str } })"
+}
+
+changeApiKey() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 changeApiKey <a>"
+        echo ""
+        echo "<a> is the new API key."
+        return 1
+    fi
+    dfx canister call backend changeApiKey "\"$1\""
+}
+
+changeOwner() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 changeOwner <new_owner>"
+        echo ""
+        echo "<new_owner> is the new owner."
+        return 1
+    fi
+    dfx canister call backend changeOwner "\"$1\""
+}
+
+check_course_has_memory_vectors_entry() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 check_course_has_memory_vectors_entry <course_id>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        return 1
+    fi
+    dfx canister call backend check_course_has_memory_vectors_entry "\"$1\""
+}
+
+listCourses() {
+    dfx canister call backend listCourses
+}
+
+createCourse() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: $0 createCourse <a> <b>"
+        echo ""
+        echo "<a> is the title of the course."
+        echo "<b> is the summary of the course."
+        return 1
+    fi
+    dfx canister call backend createCourse "(\"$1\", \"$2\")"
+}
+
+getCourseQuestions() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getCourseQuestions <course_id>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        return 1
+    fi
+    dfx canister call backend getCourseQuestions "\"$1\""
+}
+
+getOwner() {
+    dfx canister call backend getOwner
+}
+
+getProfile() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getProfile <user_id>"
+        echo ""
+        echo "<user_id> is the ID of the user."
+        return 1
+    fi
+    dfx canister call backend getProfile "\"$1\""
+}
+
+getRandomCourseQuestions() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: $0 getRandomCourseQuestions <course_id> <number_of_questions>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        echo "<number_of_questions> is the number of questions to get."
+        return 1
+    fi
+    dfx canister call backend getRandomCourseQuestions "(\"$1\", $2)"
+}
+
+enrollCourse() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: $0 enrollCourse <course_id> <student_id>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        echo "<student_id> is the ID of the student."
+        return 1
+    fi
+    dfx canister call backend enrollCourse "(\"$1\", \"$2\")"
+}
+
+generateRandomNumber() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 generateRandomNumber <max_number>"
+        echo ""
+        echo "<max_number> is the maximum number to generate."
+        return 1
+    fi
+    dfx canister call backend generateRandomNumber "$1"
+}
+
+getCourseResources() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getCourseResources <course_id>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        return 1
+    fi
+    dfx canister call backend getCourseResources "\"$1\""
+}
+
+getAcls() {
+    dfx canister call backend getAcls
+}
+
+createResource() {
+    if [ $# -ne 3 ]; then
+        echo "Usage: $0 createResource <course_id> <resource_type> <resource_data>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        echo "<resource_type> is the type of the resource."
+        echo "<resource_data> is the data of the resource."
+        return 1
+    fi
+    dfx canister call backend createResource "(\"$1\", \"$2\", \"$3\")"
+}
+
+getRunMessage() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getRunMessage <run_id>"
+        echo ""
+        echo "<run_id> is the ID of the run."
+        return 1
+    fi
+    dfx canister call backend getRunMessage "\"$1\""
+}
+
+getRunQuestions() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getRunQuestions <run_id>"
+        echo ""
+        echo "<run_id> is the ID of the run."
+        return 1
+    fi
+    dfx canister call backend getRunQuestions "\"$1\""
+}
+
+getRunStatus() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getRunStatus <run_id>"
+        echo ""
+        echo "<run_id> is the ID of the run."
+        return 1
+    fi
+    dfx canister call backend getRunStatus "\"$1\""
+}
+
+getRunsInQueue() {
+    dfx canister call backend getRunsInQueue
+}
+
+getUserEnrolledCourse() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 getUserEnrolledCourse <user_id>"
+        echo ""
+        echo "<user_id> is the ID of the user."
+        return 1
+    fi
+    dfx canister call backend getUserEnrolledCourse "\"$1\""
+}
+
+removeAcls() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 removeAcls <principal_id>"
+        echo ""
+        echo "<principal_id> is the ID of the principal."
+        return 1
+    fi
+    dfx canister call backend removeAcls "(principal \"$1\")"
+}
+
+removeQuestion() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 removeQuestion <question_id>"
+        echo ""
+        echo "<question_id> is the ID of the question."
+        return 1
+    fi
+    dfx canister call backend removeQuestion "\"$1\""
+}
+
+removeResource() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 removeResource <resource_id>"
+        echo ""
+        echo "<resource_id> is the ID of the resource."
+        return 1
+    fi
+    dfx canister call backend removeResource "\"$1\""
+}
+
+sendMessage() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: $0 sendMessage <message> <recipient_id>"
+        echo ""
+        echo "<message> is the message to send."
+        echo "<recipient_id> is the ID of the recipient."
+        return 1
+    fi
+    dfx canister call backend sendMessage "(\"$1\", \"$2\")"
+}
+
+setAssistantId() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 setAssistantId <assistant_id>"
+        echo ""
+        echo "<assistant_id> is the ID of the assistant."
+        return 1
+    fi
+    dfx canister call backend setAssistantId "\"$1\""
+}
+
+setRunProcess() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 setRunProcess <run_id>"
+        echo ""
+        echo "<run_id> is the ID of the run."
+        return 1
+    fi
+    dfx canister call backend setRunProcess "\"$1\""
+}
+
+set_icrc1_token_canister() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 set_icrc1_token_canister <canister_id>"
+        echo ""
+        echo "<canister_id> is the ID of the canister."
+        return 1
+    fi
+    dfx canister call backend set_icrc1_token_canister "\"$1\""
+}
+
+updateCourse() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: $0 updateCourse <course_id> <course_data>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        echo "<course_data> is the data of the course."
+        return 1
+    fi
+    dfx canister call backend updateCourse "(\"$1\", \"$2\")"
+}
+
+generateQuestionsForCourse() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 generateQuestionsForCourse <course_id>"
+        echo ""
+        echo "<course_id> is the ID of the course."
+        return 1
+    fi
+    dfx canister call backend generateQuestionsForCourse "\"$1\""
+}
+
+# Define the help function
+cli_help() {
+    echo "Usage: $0 <command> [options]"
+    echo ""
+    echo "Available commands:"
+    for command in "${!commands[@]}"; do
+        echo "  $command"
+    done
+    echo ""
+    echo "Run '$0 <command> --help' for more information on a specific command."
+}
+
+# Parse the command-line arguments
+if [ $# -eq 0 ]; then
+    cli_help
+    exit 1
+fi
+
+command=$1
+shift
+
+# Check if the command is valid
+if [ -z "${commands[$command]}" ]; then
+    cli_help
+    exit 1
+fi
+
+# Call the function for the command
+$command "$@"

@@ -140,6 +140,20 @@ Alternative: Run a local vite UI
 npm run vite
 ```
 
+### CLI Canister Calls
+
+A cli has been provided to interact with the canisters easily using the CLI. To use the cli, run the following command:
+
+```bash
+./cli
+```
+
+For example to list courses, run the following command:
+
+```bash
+./cli listCourses
+```
+
 ### Running tests
 
 To run the tests, use the following command:
