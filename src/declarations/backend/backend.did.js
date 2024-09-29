@@ -175,6 +175,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const Backend = IDL.Service({
     'addAcls' : IDL.Func([IDL.Principal], [], ['oneway']),
+    'addAclsText' : IDL.Func([IDL.Text], [], ['oneway']),
     'addQuestion' : IDL.Func([IDL.Text, Question], [Result], []),
     'changeApiKey' : IDL.Func([IDL.Text], [Result_2], []),
     'changeOwner' : IDL.Func([IDL.Text], [Result_2], []),
@@ -183,6 +184,8 @@ export const idlFactory = ({ IDL }) => {
         [Result_1],
         ['query'],
       ),
+    'claimTokens' : IDL.Func([IDL.Text], [Result], []),
+    'connectUserToPrincipal' : IDL.Func([IDL.Text], [Result], []),
     'createCourse' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
     'createResource' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, ResourceType__1],
@@ -225,11 +228,15 @@ export const idlFactory = ({ IDL }) => {
       ),
     'get_icrc1_token_canister_id' : IDL.Func([], [IDL.Text], ['query']),
     'listCourses' : IDL.Func([], [IDL.Vec(SharedCourse)], ['query']),
-    'registerUser' : IDL.Func([IDL.Text], [Result], []),
+    'loginOrRegiser' : IDL.Func([IDL.Text], [Result], []),
     'removeAcls' : IDL.Func([IDL.Principal], [Result_2], []),
     'removeQuestion' : IDL.Func([IDL.Text, IDL.Text], [Result_2], []),
     'removeResource' : IDL.Func([IDL.Text, IDL.Text], [Result_2], []),
-    'sendMessage' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Result_3], []),
+    'sendMessage' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [Result_3],
+        [],
+      ),
     'setAssistantId' : IDL.Func([IDL.Text], [Result_2], []),
     'setRunProcess' : IDL.Func([IDL.Text, IDL.Bool], [Result_2], []),
     'set_icrc1_token_canister' : IDL.Func([IDL.Text], [Result_2], []),

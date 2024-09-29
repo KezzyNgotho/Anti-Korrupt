@@ -2,30 +2,167 @@
   import { onMount } from "svelte";
   import logo from "../../../public/image8.png";
   import hero from "../../../public/image9.png";
-  import { createBackend } from "../helpers/utils";
+  import { createBackend, errorToText } from "../helpers/utils";
+  import iclogo from "../assets/internet-computer.svg";
+  import { store } from "../store";
+  import spinner from "../assets/loading.gif";
+  import { Principal } from "@dfinity/principal";
+  import {
+    getEnum,
+    MessageType,
+    ResourceType,
+    ResourceTypes,
+    RunStatus,
+  } from "../helpers/enum";
+  import SvelteMarkdown from "svelte-markdown";
+  import { createLedgerCanister, M_DECIMALS, M_SYMBOL } from "../helpers/ledger";
 
-  //   let activeSection = "courses"; // Default section
-  //   let selectedSort = "default";
-  //   let courses = [];
-  //   let courseCanister;
-  //   function handleNavClick(section) {
-  //     activeSection = section;
-  //     document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
-  //   }
-  //   let errorMessage = "";
+  // State Variables
 
-  let resources = []; // Example resources array
-  let questions = []; // Example questions array
+  /**
+   * @type {import("../../declarations/backend/backend.did").Resource[]}
+   */
+  let resources = [];
+
+  /**
+   * @type {import("../../declarations/backend/backend.did").Question[]}
+   */
+  let questions = [];
   let principalID = "";
+
+  /**
+   * @type {import("@dfinity/principal").Principal[]} owners
+   */
   let owners = []; // List of owners with permissions
 
-  function addPermission() {
-    if (principalID && !owners.includes(principalID)) {
-      owners.push(principalID);
-      principalID = ""; // Reset input field
+  /**
+   * @type {import("@dfinity/principal").Principal} owner
+   */
+  let owner;
+
+  let activeSection = "home"; // Default section
+  let selectedTab = "resources";
+  let selectedCourseId = "";
+  let isSending = false;
+
+  // Variables for toggling views and state
+  let searchQuery = "";
+  let selectedSort = "default";
+  let showResources = false;
+  let showQuestions = false;
+  let selectedView = "resources"; // 'resources' or 'questions'
+
+  /**
+   * @type {import("../../declarations/backend/backend.did").SharedUser}
+   */
+  let user;
+
+  let newResource = {
+    title: "",
+    type: "Book",
+    url: "",
+  };
+
+  /**
+   * @type {import("../store").State}
+   */
+  let storeState;
+  store.subscribe((value) => {
+    storeState = value;
+  });
+
+  $: console.log(storeState);
+
+  /**
+   * @type {import("../../declarations/backend/backend.did").SharedCourse[]}
+   */
+  let courses = [];
+
+  /**
+   * @type {import("../../declarations/backend/backend.did").Message[]}
+   */
+  let messages = [];
+
+  /**
+   * @type {import("../../declarations/backend/backend.did").SharedEnrolledCourse}
+   */
+  let enrolledCourse;
+
+  let isAddingPermission = false;
+  async function addPermission() {
+    if (principalID) {
+      try {
+        const principal = Principal.fromText(principalID);
+        isAddingPermission = true;
+        await storeState.backendActor.addAcls(principal);
+        principalID = "";
+      } catch (error) {
+        alert("Please enter a valid Principal ID.");
+      } finally {
+        isAddingPermission = false;
+      }
     } else {
       alert("Please enter a valid Principal ID.");
     }
+  }
+
+  /**
+   * @param {string} userId
+   */
+  async function getUserProfile(userId) {
+    if (userId) {
+      const response = await storeState.backendActor.getProfile(userId);
+      if (response["err"]) {
+        alert(`Error fetching user profile: ${errorToText(response["err"])}`);
+        return;
+      }
+      user = response["ok"];
+    } else {
+      alert("Please connect your wallet to view your profile.");
+    }
+  }
+
+  $: getUserProfile(storeState.userId);
+
+  async function getTokens(principal) {
+    if (!principal) {
+      return;
+    }
+    const ledger = await createLedgerCanister();
+    const metadata = await ledger.metadata({});
+    if (!metadata) {
+      alert("Can't find token metadata");
+      return;
+    }
+    let symbol = "";
+    for (const value of metadata) {
+      if (value[0] === M_SYMBOL) {
+        symbol = value[1].Text;
+        break;
+      }
+    }
+    let decimals = 0;
+    for (const value of metadata) {
+      if (value[0] === M_DECIMALS) {
+        decimals = parseInt(value[1].Nat);
+        break;
+      }
+    }
+    const balance =
+      Number(
+        await ledger.balance({
+          owner: storeState.principal,
+        }),
+      ) /
+      10 ** decimals;
+    userTokens = `${balance} ${symbol}`;
+  }
+
+  $: getTokens(storeState.principal);
+
+  async function loadPermissions() {
+    owners = await storeState.backendActor.getAcls();
+    owner = await storeState.backendActor.getOwner();
   }
 
   async function fetchCourses() {
@@ -38,89 +175,202 @@
     }
   }
 
-  // State Variables
-  let activeSection = "home"; // Default section
-  let selectedTab = "resources";
-
   // Function to toggle See All Courses
   function toggleSeeAll() {
     seeAll = !seeAll;
   }
 
-  // Variables for toggling views and state
-  let searchQuery = "";
-  let selectedSort = "default";
-  let showResources = false;
-  let showQuestions = false;
-  let selectedView = "resources"; // 'resources' or 'questions'
-
-  let newResource = {
-    title: "",
-    type: "",
-    file: null,
-  };
-
-  function handleViewCourse() {
+  let viewingCourseId = "";
+  /**
+   * @param {string} id
+   */
+  async function handleViewCourse(id) {
+    viewingCourseId = id;
+    await loadResources();
+    await loadQuestions();
     showResources = true;
     showQuestions = false;
   }
 
+  $: console.log("Questions", questions);
+
+  /**
+   * @param {string} view
+   */
   function switchView(view) {
     selectedView = view;
   }
+  /**
+   * @param {string} tab
+   */
   function switchTab(tab) {
     selectedTab = tab;
+    if (tab === "permissions") {
+      loadPermissions();
+    }
   }
 
+  /**
+   * @param {import("../../declarations/backend/backend.did").SharedCourse} course
+   */
   function updateCourse(course) {
     // Logic to update an existing course
     console.log("Updating course: ", course);
   }
 
-  function handleResourceUpload(event) {
-    newResource.file = event.target.files[0];
+  async function loadResources() {
+    if (viewingCourseId) {
+      const response =
+        await storeState.backendActor.getCourseResources(viewingCourseId);
+      if (response["err"]) {
+        alert(`Error fetching resources: ${errorToText(response["err"])}`);
+        return;
+      }
+      resources = response["ok"];
+    } else {
+      alert("Please select a course to view resources.");
+    }
   }
 
-  function addNewResource() {
-    if (newResource.title && newResource.type && newResource.file) {
-      resources.push({
-        title: newResource.title,
-        type: newResource.type,
-        url: URL.createObjectURL(newResource.file),
-      });
-      newResource = { title: "", type: "", file: null }; // Reset the form
+  let isAddingResource = false;
+  async function addNewResource() {
+    if (newResource.title && newResource.type && newResource.url) {
+      // Add logic to create a new resource in the backend
+      isAddingResource = true;
+      try {
+        const response = await storeState.backendActor.createResource(
+          viewingCourseId,
+          newResource.title,
+          newResource.url,
+          ResourceType[newResource.type],
+        );
+        isAddingResource = false;
+        if (response["err"]) {
+          alert(`Error creating resource: ${errorToText(response["err"])}`);
+          return;
+        }
+        alert("Resource added successfully.");
+        await loadResources(); // Refresh resources
+        newResource = { title: "", type: "", url: "" }; // Reset the form
+      } finally {
+        isAddingResource = false;
+      }
     } else {
       alert("Please complete all fields.");
     }
   }
 
-  function generateRandomQuestion() {
-    const randomQuestion = {
-      question: "What is AI's role in the digital age?",
-      options: [
-        { text: "To replace human jobs", isCorrect: false },
-        { text: "To assist in decision-making", isCorrect: true },
-        { text: "To manage databases", isCorrect: false },
-        { text: "To generate random numbers", isCorrect: false },
-      ],
-    };
-    questions.push(randomQuestion);
+  let isDeletingResource = false;
+  /**
+   * @param {string} rid Resource ID
+   */
+  async function deleteResource(rid) {
+    if (viewingCourseId) {
+      if (confirm("Are you sure you want to delete this resource?")) {
+        isDeletingResource = true;
+        try {
+          const response = await storeState.backendActor.removeResource(
+            viewingCourseId,
+            rid,
+          );
+          isDeletingResource = false;
+          if (response["err"]) {
+            alert(`Error deleting resource: ${errorToText(response["err"])}`);
+            return;
+          }
+          alert("Resource deleted successfully.");
+          await loadResources(); // Refresh resources
+        } finally {
+          isDeletingResource = false;
+        }
+      }
+    } else {
+      alert("Please select a course to view resources.");
+    }
   }
 
-  const CourseStatus = {
-    InFix: "InFix",
-    InReview: "InReview",
-    Rejected: "Rejected",
-    Approved: "Approved",
-  };
-
-  function getEnum(value, enumType) {
-    return enumType[value] || "Unknown";
+  async function loadQuestions() {
+    if (viewingCourseId) {
+      const response =
+        await storeState.backendActor.getCourseQuestions(viewingCourseId);
+      if (response["err"]) {
+        alert(`Error fetching questions: ${errorToText(response["err"])}`);
+        return;
+      }
+      questions = response["ok"];
+    } else {
+      alert("Please select a course to view questions.");
+    }
   }
 
-  // Determine course status color
-  let statusColor = "";
-  const status = "Approved";
+  // Generate questions
+  /**
+   * @param {string} runId
+   */
+  async function getRunQuestions(runId) {
+    const response = await storeState.backendActor.getRunQuestions(runId);
+    if (response["ok"]) {
+      return response["ok"];
+    } else {
+      console.log(response["err"]);
+      alert("Could not get response: " + response["err"]);
+    }
+  }
+
+  let isGeneratingQuestions = false;
+  /**
+   * @param {string} courseId
+   */
+  async function generateCourseQuestions(courseId) {
+    try {
+      isGeneratingQuestions = true;
+      const response =
+        await storeState.backendActor.generateQuestionsForCourse(courseId);
+      console.log("generateCourseQuestions", response);
+      if (response["ok"].Completed) {
+        const runId = response["ok"].Completed.runId;
+        const status = await pollRunStatus(runId);
+        console.log("Got success status", status);
+        if (!status) {
+          alert("Questions error: Not found");
+          isGeneratingQuestions = false;
+          return;
+        }
+        switch (status) {
+          case "Completed":
+            const updatedQuestions = await getRunQuestions(runId);
+            if (questions) {
+              questions = updatedQuestions;
+              alert("Questions generated successfully");
+            }
+            break;
+          default:
+            break;
+        }
+      } else {
+        if (response["err"].ThreadLock) {
+          const pendingRunId = response["err"].ThreadLock.runId;
+          console.log("Pending run id", pendingRunId);
+          return;
+        }
+        if (response["err"].Failed) {
+          alert("Failed to generate questions: " + response["err"].Failed);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      isGeneratingQuestions = false;
+    }
+  }
+
+  async function generateQuestions() {
+    if (viewingCourseId) {
+      await generateCourseQuestions(viewingCourseId);
+    } else {
+      alert("Please select a course to generate questions.");
+    }
+  }
 
   // Recent Tokens Data
   let recentToken1 = "Completed AI Basics Quiz: +10 tokens";
@@ -143,64 +393,17 @@
     description: "",
   };
 
+  let messageText = "";
+
   // Functions
   // Call initializeBackend and fetchCourses on mount to populate courses data
   onMount(async () => {
     await fetchCourses();
   });
 
-  let leaderboard = [
-    { name: "Alice", avatar: "https://via.placeholder.com/40", score: 120 },
-    { name: "Bob", avatar: "https://via.placeholder.com/40", score: 110 },
-    { name: "Charlie", avatar: "https://via.placeholder.com/40", score: 100 },
-    { name: "Dave", avatar: "https://via.placeholder.com/40", score: 90 },
-    { name: "Eve", avatar: "https://via.placeholder.com/40", score: 80 },
-  ];
-
-  // Sample data for top users
-  let topUsers = [
-    {
-      rank: 1,
-      name: "Alice",
-      avatar: "https://via.placeholder.com/40",
-      score: 120,
-    },
-    {
-      rank: 2,
-      name: "Bob",
-      avatar: "https://via.placeholder.com/40",
-      score: 110,
-    },
-    {
-      rank: 3,
-      name: "Charlie",
-      avatar: "https://via.placeholder.com/40",
-      score: 100,
-    },
-  ];
-
-  // User's progress percentage (for progress tracker)
-  let userProgressPercentage = 75; // Example value
-
-  // Variable for selected timeframe
-  let timeFrame = "weekly";
-
-  // Function to refresh the leaderboard based on selected timeframe
-  function refreshLeaderboard() {
-    // Logic to update the leaderboard based on the selected timeframe
-    // This is where you would normally fetch new data based on the timeFrame
-    console.log(`Leaderboard refreshed for ${timeFrame} timeframe.`);
-  }
-
-  // Example of how to handle the change in timeframe
-  $: {
-    refreshLeaderboard(); // Call refresh whenever the timeFrame changes
-  }
-
   let seeAll = false;
   let activeTab = "overview";
-  let selectedReward = "";
-  let userTokens = 50;
+  let userTokens = "-";
   let quizTimer = 60;
 
   let quizzes = [
@@ -229,11 +432,14 @@
   };
 
   // Handle Tab Change in Rewards Section
-  const handleTabChange = (tab) => {
+  const handleTabChange = (/** @type {string} */ tab) => {
     activeTab = tab;
   };
 
   // Handle Navigation Click
+  /**
+   * @param {string} section
+   */
   function handleNavClick(section) {
     activeSection = section;
     const element = document.getElementById(section);
@@ -242,19 +448,189 @@
     }
   }
 
+  /**
+   * @param {string} courseId
+   * @param {string} userId
+   * @returns {Promise<import("../../declarations/backend/backend.did").SharedEnrolledCourse>}
+   */
+  async function fetchCourseMessages(courseId, userId) {
+    // Logic to fetch messages for the selected course
+    const result = await storeState.backendActor.getUserEnrolledCourse(
+      courseId,
+      userId,
+    );
+    if (result["err"]) {
+      alert(`Error fetching course messages: ${errorToText(result["err"])}`);
+      return;
+    }
+    return result["ok"];
+  }
+
+  const sleep = (/** @type {number} */ delay) =>
+    new Promise((resolve) => setTimeout(resolve, delay));
+
+  /**
+   * @param {string} runId
+   */
+  async function pollRunStatus(runId) {
+    while (true) {
+      const response = await storeState.backendActor.getRunStatus(runId);
+      console.log("PollRunStatus", response);
+      if (response["ok"]) {
+        const enumStatus = getEnum(response["ok"], RunStatus);
+        switch (enumStatus) {
+          case "InProgress":
+            await sleep(1000);
+            break;
+          default:
+            return enumStatus;
+        }
+      } else {
+        console.log("Run ID error", response["err"]);
+        return;
+      }
+    }
+  }
+
+  /**
+   * @param {string} runId
+   * @param {string} userId
+   */
+  async function getRunMessage(runId, userId) {
+    const response = await storeState.backendActor.getRunMessage(runId, userId);
+    if (response["ok"]) {
+      return response["ok"].content;
+    } else {
+      console.log(response["err"]);
+      alert("Could not get response: " + response["err"]);
+    }
+  }
+
+  $: console.log("Messages", messages);
+
+  /**
+   * @param {string} threadId
+   * @param {string} message
+   * @param {string} userId
+   */
+  async function sendThreadMessage(threadId, message, userId) {
+    try {
+      isSending = true;
+      const response = await storeState.backendActor.sendMessage(
+        threadId,
+        message,
+        "",
+        userId,
+      );
+      console.log("sendThreadMessage", response);
+      if (response["ok"].Completed) {
+        const runId = response["ok"].Completed.runId;
+        const status = await pollRunStatus(runId);
+        console.log("Got success status", status);
+        if (!status) {
+          alert("Message error: Not found");
+          isSending = false;
+          return;
+        }
+        switch (status) {
+          case "Completed":
+            const content = await getRunMessage(runId, userId);
+            if (content) {
+              messages = [
+                ...messages,
+                { content, runId, role: { System: null } },
+              ];
+            }
+            break;
+          default:
+            break;
+        }
+      } else {
+        if (response["err"].ThreadLock) {
+          const pendingRunId = response["err"].ThreadLock.runId;
+          console.log("Pending run id", pendingRunId);
+          alert("Message error: Thread locked");
+          return;
+        }
+        if (response["err"].Failed) {
+          alert("Failed to send message: " + response["err"].Failed);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      isSending = false;
+    }
+  }
+
+  const sendMessage = async () => {
+    if (messageText) {
+      await sendThreadMessage(
+        enrolledCourse.threadId,
+        messageText,
+        storeState.userId,
+      );
+      messageText = "";
+    } else {
+      alert("Please enter a message to send.");
+    }
+  };
+
+  async function setUserId() {
+    const fullname = prompt("Please enter your full name to start learning:");
+    if (fullname) {
+      const err = await store.setUserId(fullname);
+      if (err) {
+        alert(`Error setting user ID: ${errorToText(err)}`);
+        return;
+      }
+    } else {
+      alert("Please enter your full name to start learning.");
+      return;
+    }
+  }
+
   // Start Learning a Course
-  function startLearning(courseId) {
-    activeSection = "chatgpt-interface";
-    userTokens += 10; // Reward for starting the course
+  /**
+   * @param {string} courseId
+   */
+  async function startLearning(courseId) {
+    if (!storeState.userId) {
+      await setUserId();
+    }
+
+    // Enroll user in course
+    const result = await storeState.backendActor.enrollCourse(
+      courseId,
+      storeState.userId,
+    );
+    if ("err" in result) {
+      alert(`Error enrolling in course: ${errorToText(result.err)}`);
+      return;
+    }
+
+    selectedCourseId = courseId;
+    activeSection = "chatbots";
     const element = document.getElementById("chatgpt-interface");
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
     }
+
+    // Get course messages
+    enrolledCourse = await fetchCourseMessages(courseId, storeState.userId);
+    if (!enrolledCourse) {
+      alert("Error fetching course messages.");
+      return;
+    }
+    messages = enrolledCourse.messages;
   }
 
   let timeTaken = 45; // Example time taken to complete a quiz
 
   // Start a Quiz
+  /**
+   * @param {{ title: string; description: string; questions: number; }} quiz
+   */
   function startQuiz(quiz) {
     let startTime = Date.now();
     setTimeout(() => {
@@ -269,19 +645,28 @@
     }, quizTimer * 1000);
   }
 
-  // Handle Redemption Form Submission
-  const handleRedemption = (event) => {
-    event.preventDefault();
-    if (selectedReward) {
-      console.log(`Redeeming ${selectedReward}`);
-      userTokens -= getRewardCost(selectedReward);
-      recentToken1 = `Redeemed ${selectedReward}: -${getRewardCost(selectedReward)} tokens`;
-    } else {
-      console.error("Please select a reward.");
+  async function claimToken() {
+    if (!storeState.isAuthed) {
+      alert("Please connect your wallet to claim tokens.");
+      return;
     }
-  };
+    if (!storeState.userId) {
+      await setUserId();
+    }
+    const response = await storeState.backendActor.claimTokens(
+      storeState.userId,
+    );
+    if (response["err"]) {
+      alert(`Error claiming tokens: ${errorToText(response["err"])}`);
+      return;
+    }
+    alert("Tokens claimed successfully.");
+  }
 
   // Get Reward Cost
+  /**
+   * @param {string} reward
+   */
   function getRewardCost(reward) {
     const rewardCosts = {
       "Free Course Access": 20,
@@ -292,25 +677,33 @@
   }
 
   // Connect Wallet
+  let connectingWallet = false;
   const connectWallet = () => {
-    console.log("Connecting wallet...");
+    connectingWallet = true;
+    store.internetIdentityConnect();
+    connectingWallet = false;
   };
 
-  // Load Chat
-  function loadChat(date, topic) {
-    console.log(`Loading chat for ${topic} on ${date}`);
-  }
-
-  function addNewCourse() {
+  let isAddingCourse = false;
+  async function addNewCourse() {
     if (newCourse.title && newCourse.description) {
-      courses.push({ ...newCourse });
+      // Add logic to create a new course in the backend
+      isAddingCourse = true;
+      const response = await storeState.backendActor.createCourse(
+        newCourse.title,
+        newCourse.description,
+      );
+      isAddingCourse = false;
+      if (response["err"]) {
+        alert(`Error creating course: ${errorToText(response["err"])}`);
+        return;
+      }
+      fetchCourses(); // Refresh courses
       newCourse = { title: "", description: "" }; // Reset form
     } else {
       alert("Please complete both title and description.");
     }
   }
-
-  let courses = [];
 
   // On Mount
   onMount(() => {
@@ -336,8 +729,12 @@
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
     {#each ["Home", "Courses", "Chatbots", "Quizzes", "Rewards", "Contact", "admin"] as link}
+      <!-- svelte-ignore a11y-invalid-attribute -->
       <a
+        href="#"
         on:click={() => handleNavClick(link.toLowerCase())}
+        on:keydown={(e) =>
+          e.key === "Enter" && handleNavClick(link.toLowerCase())}
         class="text-white hover:text-blue-300 border-b-2 border-transparent hover:border-white px-4 py-2 transition-all duration-300 cursor-pointer"
       >
         {link}
@@ -353,17 +750,31 @@
     >
       Get Started 🚀
     </button>
-    <button
-      on:click={() => handleNavClick("rewards")}
-      class="bg-transparent border border-blue-200 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-300 hover:text-[#023e8a] transition-all duration-300 transform hover:scale-105"
-    >
-      Rewards 🤝
-    </button>
+    {#if !storeState?.isAuthed}
+      <button
+        on:click={() => connectWallet()}
+        class="bg-transparent border border-blue-200 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-300 hover:text-[#023e8a] transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+      >
+        {#if connectingWallet}
+          <img class="h-6 block" src={spinner} alt="loading animation" />
+        {:else}
+          <img class="h-3" src={iclogo} alt="ic wallet" />
+          <span>Connect</span>
+        {/if}
+      </button>
+    {:else}
+      <button
+        on:click={() => store.disconnect()}
+        class="bg-transparent border border-blue-200 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-300 hover:text-[#023e8a] transition-all duration-300 transform hover:scale-105"
+      >
+        Logout
+      </button>
+    {/if}
   </div>
 </header>
 
 <!-- Main Content -->
-<main class="">
+<main class="mt-10 md:mt-14">
   <!-- Add padding-top to offset the fixed navbar -->
 
   <section
@@ -392,6 +803,7 @@
             Sign Up
           </button>
           <button
+            on:click={() => handleNavClick("courses")}
             class="bg-[#00C4CC] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
           >
             Go to learning
@@ -423,14 +835,6 @@
     class:hidden={activeSection !== "courses"}
   >
     <div class="container mx-auto text-center">
-      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">
-        Available Courses
-      </h2>
-      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
-        Explore our curated courses designed to deepen your understanding of AI
-        and blockchain technologies.
-      </p>
-
       <section
         id="courses"
         class="py-16 bg-gray-50"
@@ -511,80 +915,6 @@
             >
               View All Courses
             </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- Chatbots Section -->
-
-      <section
-        id="chatgpt-interface"
-        class="py-16 bg-gray-100"
-        class:hidden={activeSection !== "chatbots"}
-      >
-        <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
-          <!-- Sidebar for Chat History -->
-          <aside
-            class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8"
-          >
-            <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
-            <div class="overflow-y-auto max-h-[500px]">
-              <ul class="space-y-4">
-                {#each chatHistory as { date, topic }}
-                  <li>
-                    <button
-                      class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
-                      on:click={() => loadChat(date, topic)}
-                    >
-                      <div class="font-semibold text-gray-900">{topic}</div>
-                      <div class="text-sm text-gray-600">{date}</div>
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            </div>
-          </aside>
-
-          <!-- Main Chat Interface -->
-          <div
-            class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]"
-          >
-            <!-- Chat Window -->
-            <div
-              id="chat-window"
-              class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50"
-            >
-              <!-- Example Chat Messages -->
-              <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">User:</div>
-                <div class="bg-gray-200 p-2 rounded-lg">
-                  Hello, how can I use the chatbot?
-                </div>
-              </div>
-              <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
-                <div class="bg-[#E1AD01] text-white p-2 rounded-lg">
-                  You can ask me anything, and I'll provide the best possible
-                  answers!
-                </div>
-              </div>
-            </div>
-
-            <!-- Chat Input -->
-            <div class="flex items-center border-t border-gray-300 pt-4">
-              <input
-                type="text"
-                id="chat-input"
-                class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01] transition duration-300"
-                placeholder="Type your message here..."
-              />
-              <button
-                id="send-btn"
-                class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
-              >
-                Send
-              </button>
-            </div>
           </div>
         </div>
       </section>
@@ -671,28 +1001,6 @@
     class:hidden={activeSection !== "chatbots"}
   >
     <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
-      <!-- Sidebar for Chat History -->
-      <aside
-        class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8"
-      >
-        <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
-        <div class="overflow-y-auto max-h-[500px]">
-          <ul class="space-y-4">
-            {#each chatHistory as { date, topic }}
-              <li>
-                <button
-                  class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
-                  on:click={() => loadChat(date, topic)}
-                >
-                  <div class="font-semibold text-gray-900">{topic}</div>
-                  <div class="text-sm text-gray-600">{date}</div>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        </div>
-      </aside>
-
       <!-- Main Chat Interface -->
       <div
         class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]"
@@ -703,19 +1011,24 @@
           class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50"
         >
           <!-- Example Chat Messages -->
-          <div class="mb-4">
-            <div class="text-sm text-gray-600 mb-1">User:</div>
-            <div class="bg-gray-200 p-2 rounded-lg">
-              Hello, how can I use the chatbot?
-            </div>
-          </div>
-          <div class="mb-4">
-            <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
-            <div class="bg-[#E1AD01] text-white p-2 rounded-lg">
-              You can ask me anything, and I'll provide the best possible
-              answers!
-            </div>
-          </div>
+          {#each messages as { content, role }}
+            {#if getEnum(role, MessageType) == "User"}
+              <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">User:</div>
+                <div class="bg-gray-200 p-2 rounded-lg">
+                  {content}
+                </div>
+              </div>
+            {/if}
+            {#if getEnum(role, MessageType) == "System"}
+              <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">System:</div>
+                <div class="bg-[#E1AD01] text-white p-2 rounded-lg">
+                  <SvelteMarkdown source={content} />
+                </div>
+              </div>
+            {/if}
+          {/each}
         </div>
 
         <!-- Chat Input -->
@@ -725,12 +1038,15 @@
             id="chat-input"
             class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
             placeholder="Type your message here..."
+            bind:value={messageText}
           />
           <button
             id="send-btn"
+            on:click={sendMessage}
+            disabled={isSending}
             class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
           >
-            Send
+            {isSending ? "Sending..." : "Send"}
           </button>
         </div>
       </div>
@@ -826,7 +1142,7 @@
               : "text-[#0077b6] hover:text-[#023e8a]"
           }`}
         >
-          <i class="fas fa-gift mr-2"></i> Redeem Rewards
+          <i class="fas fa-gift mr-2"></i> Claim Rewards
         </button>
       </div>
 
@@ -907,50 +1223,40 @@
         {#if activeTab === "redeem"}
           <section class="bg-white p-8 rounded-lg shadow-xl">
             <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">
-              Redeem Rewards
+              Claim Rewards
             </h3>
             <p class="text-gray-700 mb-6">
-              Here you can redeem your tokens for various rewards. Choose from
+              Here you can claim your tokens for various rewards. Choose from
               our exciting options and use your tokens wisely!
             </p>
 
-            <!-- Wallet Integration -->
-            <div class="mb-8">
-              <p class="text-gray-700 mb-4">
-                Connect your wallet to proceed with the redemption:
-              </p>
-              <button
-                on:click={connectWallet}
-                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
-              >
-                Connect Wallet
-              </button>
-            </div>
-
             <!-- Redemption Form -->
-            <form on:submit={handleRedemption} class="space-y-6">
-              <label class="block mb-2 text-gray-700" for="reward-select"
-                >Select Reward:</label
-              >
-              <select
-                id="reward-select"
-                class="block w-full p-3 border border-gray-300 rounded-lg"
-                bind:value={selectedReward}
-              >
-                <option value="" disabled>Select a reward</option>
-                <option value="course">{reward1}</option>
-                <option value="nft">{reward2}</option>
-                <option value="mentor">{reward3}</option>
-                <!-- Add more rewards as needed -->
-              </select>
+            <div class="space-y-6">
+              <p class="block mb-2 text-gray-700">Claimable Tokens:</p>
+              <p>{Number(user?.claimableTokens)}</p>
 
-              <button
-                type="submit"
-                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
-              >
-                Redeem Now
-              </button>
-            </form>
+              {#if !storeState?.isAuthed}
+                <div class="mb-8">
+                  <p class="text-gray-700 mb-4">
+                    Connect your wallet to proceed with the redemption:
+                  </p>
+                  <button
+                    on:click={connectWallet}
+                    class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
+                  >
+                    Connect Wallet
+                  </button>
+                </div>
+              {:else}
+                <button
+                  on:click={claimToken}
+                  type="submit"
+                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
+                >
+                  Claim Now
+                </button>
+              {/if}
+            </div>
           </section>
         {/if}
       </div>
@@ -1011,6 +1317,11 @@
     class:hidden={activeSection !== "admin"}
   >
     <div class="container mx-auto space-y-8">
+      {#if storeState.principal}
+        <p>
+          Principal: {storeState.principal.toText()}
+        </p>
+      {/if}
       <!-- Tab Navigation -->
       <div class="flex justify-center space-x-8 mb-6">
         <button
@@ -1060,196 +1371,210 @@
               <button
                 type="submit"
                 class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+                disabled={isAddingCourse}
               >
-                + Add Course
+                {isAddingCourse ? "Adding Course..." : "+ Add Course"}
               </button>
             </form>
           </div>
 
-          <!-- Course List -->
-          {#each courses as course}
-            <div
-              class="max-w-xs min-w-[320px] bg-white text-[#0f535c] shadow-2xl rounded-md overflow-hidden mx-auto"
-            >
-              <div class="p-6">
-                <div class="text-center mb-5">
-                  <h2 class="text-2xl font-bold">{course.title}</h2>
-                  <p class="mt-2 text-gray-700">{course.description}</p>
-                  <span class="px-3 py-1 text-white bg-[#E1AD01] rounded"
-                    >Approved</span
-                  >
-                </div>
+          <div
+            class="flex flex-col md:flex-row justify-center items-start space-y-4 md:space-y-0 md:space-x-4"
+          >
+            <div class="flex flex-col space-y-4">
+              <!-- Course List -->
+              {#each courses as course}
+                <div
+                  class="max-w-xs min-w-[320px] bg-white text-[#0f535c] shadow-2xl rounded-md overflow-hidden mx-auto"
+                >
+                  <div class="p-6">
+                    <div class="text-center mb-5">
+                      <h2 class="text-2xl font-bold">{course.title}</h2>
+                      <p class="mt-2 text-gray-700">{course.summary}</p>
+                    </div>
 
-                <div class="flex justify-around mb-5">
-                  <div class="text-center">
-                    <p class="font-semibold text-lg">50</p>
-                    <p class="text-gray-500">Enrolled</p>
-                  </div>
-                  <div class="text-center">
-                    <p class="font-semibold text-lg">3</p>
-                    <p class="text-gray-500">Reports</p>
-                  </div>
-                </div>
-
-                <div class="flex justify-center space-x-4">
-                  <button
-                    class="bg-[#0f535c] text-white py-2 px-4 rounded-md hover:bg-[#E1AD01] transition-all duration-200"
-                    on:click={handleViewCourse}
-                  >
-                    View Course
-                  </button>
-                  <button
+                    <div class="flex justify-center space-x-4">
+                      <button
+                        class="bg-[#0f535c] text-white py-2 px-4 rounded-md hover:bg-[#E1AD01] transition-all duration-200"
+                        on:click={() => handleViewCourse(course.id)}
+                      >
+                        View Course
+                      </button>
+                      <!-- <button
                     class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-all duration-200"
                     on:click={() => updateCourse(course)}
                   >
                     Update Course
-                  </button>
-                </div>
-              </div>
-            </div>
-          {/each}
-
-          {#if showResources}
-            <!-- Toggle Buttons to Switch Between Resources and Questions -->
-            <div class="flex justify-center space-x-8 mb-6">
-              <button
-                class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
-                'resources'
-                  ? 'bg-[#E1AD01] text-white'
-                  : 'border-gray-300'}"
-                on:click={() => switchView("resources")}
-              >
-                Resources
-              </button>
-              <button
-                class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
-                'questions'
-                  ? 'bg-[#E1AD01] text-white'
-                  : 'border-gray-300'}"
-                on:click={() => switchView("questions")}
-              >
-                Questions
-              </button>
-            </div>
-
-            <!-- Resource Section -->
-            {#if selectedView === "resources"}
-              <div class="space-y-8">
-                {#each resources as resource}
-                  <div
-                    class="max-w-xs min-w-[320px] bg-gray-900 text-white shadow-2xl rounded-md p-6 text-center mx-auto"
-                  >
-                    <h2 class="text-2xl font-bold">{resource.title}</h2>
-                    <p class="text-gray-400 mt-4">
-                      Resource Type: {resource.type}
-                    </p>
-
-                    <div class="mt-6">
-                      <span class="px-3 py-1 bg-gray-700 rounded"
-                        >{resource.type}</span
-                      >
-                    </div>
-
-                    <div class="mt-8">
-                      <a href={resource.url} target="_blank">
-                        <div class="flex space-x-4">
-                          <button
-                            class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
-                          >
-                            View Resource
-                          </button>
-                          <button
-                            class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
-                          >
-                            Delete Resource
-                          </button>
-                        </div>
-                      </a>
+                  </button> -->
                     </div>
                   </div>
-                {/each}
-
-                <!-- Add New Resource Form -->
-                <div
-                  class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8"
-                >
-                  <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">
-                    Add New Resource
-                  </h3>
-                  <form
-                    on:submit|preventDefault={addNewResource}
-                    class="space-y-4"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Resource Title"
-                      class="block w-full p-2 border rounded-lg"
-                      bind:value={newResource.title}
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Resource Type (e.g., Book, Video)"
-                      class="block w-full p-2 border rounded-lg"
-                      bind:value={newResource.type}
-                      required
-                    />
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.mp4"
-                      class="block w-full p-2 border rounded-lg"
-                      on:change={handleResourceUpload}
-                      required
-                    />
-                    <button
-                      type="submit"
-                      class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
-                    >
-                      Add Resource
-                    </button>
-                  </form>
                 </div>
-              </div>
-            {/if}
-
-            <!-- Questions Section -->
-            {#if selectedView === "questions"}
-              <div
-                class="bg-white text-[#0f535c] p-6 rounded-md shadow-lg mx-auto max-w-xl"
-              >
-                <h2 class="text-2xl font-bold text-center mb-6">Questions</h2>
-
-                {#each questions as question, i}
-                  <div class="mb-8">
-                    <p class="text-lg font-semibold">
-                      {i + 1}. {question.question}
-                    </p>
-                    <ul class="mt-2">
-                      {#each question.options as option}
-                        <li
-                          class="mt-2 px-4 py-2 rounded-lg {option.isCorrect
-                            ? 'bg-green-100 border-l-4 border-green-500'
-                            : 'bg-gray-100'}"
-                        >
-                          {option.text}
-                        </li>
-                      {/each}
-                    </ul>
-                  </div>
-                {/each}
-
-                <!-- Generate New Question Button -->
-                <div class="mt-8 text-center">
+              {/each}
+            </div>
+            <div>
+              {#if showResources}
+                <!-- Toggle Buttons to Switch Between Resources and Questions -->
+                <div class="flex justify-center space-x-8 mb-6">
                   <button
-                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-green-600 transition-all duration-300"
-                    on:click={generateRandomQuestion}
+                    class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
+                    'resources'
+                      ? 'bg-[#E1AD01] text-white'
+                      : 'border-gray-300'}"
+                    on:click={() => switchView("resources")}
                   >
-                    + Generate Question
+                    Resources
+                  </button>
+                  <button
+                    class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
+                    'questions'
+                      ? 'bg-[#E1AD01] text-white'
+                      : 'border-gray-300'}"
+                    on:click={() => switchView("questions")}
+                  >
+                    Questions
                   </button>
                 </div>
-              </div>
-            {/if}
-          {/if}
+
+                <!-- Resource Section -->
+                {#if selectedView === "resources"}
+                  <div class="space-y-8">
+                    {#each resources as resource}
+                      <div
+                        class="max-w-xs min-w-[320px] bg-gray-900 text-white shadow-2xl rounded-md p-6 text-center mx-auto"
+                      >
+                        <h2 class="text-2xl font-bold">{resource.title}</h2>
+
+                        <div class="mt-6">
+                          <span class="px-3 py-1 bg-gray-700 rounded"
+                            >{getEnum(resource.rType, ResourceType)}</span
+                          >
+                        </div>
+
+                        <div class="mt-8">
+                          <div class="flex space-x-4">
+                            <a href={resource.url} target="_blank">
+                              <button
+                                class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                              >
+                                View Resource
+                              </button>
+                            </a>
+                            <button
+                              on:click={() => deleteResource(resource.id)}
+                              class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                            >
+                              {#if isDeletingResource}
+                                Deleting...
+                              {:else}
+                                Delete Resource
+                              {/if}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+
+                    <!-- Add New Resource Form -->
+                    <div
+                      class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8"
+                    >
+                      <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">
+                        Add New Resource
+                      </h3>
+                      <form
+                        on:submit|preventDefault={addNewResource}
+                        class="space-y-4"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Resource Title"
+                          class="block w-full p-2 border rounded-lg"
+                          bind:value={newResource.title}
+                          required
+                        />
+                        <input
+                          type="text"
+                          placeholder="Resource URL"
+                          class="block w-full p-2 border rounded-lg"
+                          bind:value={newResource.url}
+                          required
+                        />
+                        <select
+                          required
+                          placeholder="Resource Type (e.g., Book, Video)"
+                          class="block w-full p-2 border rounded-lg"
+                          bind:value={newResource.type}
+                        >
+                          {#each ResourceTypes as rType}
+                            <option value={rType}>
+                              {rType}
+                            </option>
+                          {/each}
+                        </select>
+                        <button
+                          disabled={isAddingResource}
+                          type="submit"
+                          class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+                        >
+                          {#if isAddingResource}
+                            Adding Resource...
+                          {:else}
+                            + Add Resource
+                          {/if}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Questions Section -->
+                {#if selectedView === "questions"}
+                  <div
+                    class="bg-white text-[#0f535c] p-6 rounded-md shadow-lg mx-auto max-w-xl"
+                  >
+                    <h2 class="text-2xl font-bold text-center mb-6">
+                      Questions
+                    </h2>
+
+                    {#each questions as question, i}
+                      <div class="mb-8">
+                        <p class="text-lg font-semibold">
+                          {i + 1}. {question.description}
+                        </p>
+                        <ul class="mt-2">
+                          {#each question.options as option}
+                            <li
+                              class="mt-2 px-4 py-2 rounded-lg {option.option ===
+                              question.correctOption
+                                ? 'bg-green-100 border-l-4 border-green-500'
+                                : 'bg-gray-100'}"
+                            >
+                              {option.description}
+                            </li>
+                          {/each}
+                        </ul>
+                      </div>
+                    {/each}
+
+                    <!-- Generate New Question Button -->
+                    <div class="mt-8 text-center">
+                      <button
+                        disabled={isGeneratingQuestions}
+                        class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-green-600 transition-all duration-300"
+                        on:click={generateQuestions}
+                      >
+                        {#if isGeneratingQuestions}
+                          Generating Question...
+                        {:else}
+                          Generate New Question
+                        {/if}
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+              {/if}
+            </div>
+          </div>
         </div>
       {/if}
 
@@ -1270,18 +1595,27 @@
               required
             />
             <button
+              disabled={isAddingPermission}
               type="submit"
               class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
             >
-              Add Permission
+              {#if isAddingPermission}
+                Adding Permission...
+              {:else}
+                + Add Permission
+              {/if}
             </button>
           </form>
 
+          <!-- Display Owner -->
+          <h4 class="text-xl font-bold mt-6">Owner:</h4>
+          <p>{owner?.toText()}</p>
+
           <!-- Display Owners -->
-          <h4 class="text-xl font-bold mt-6">Owners with Permissions:</h4>
+          <h4 class="text-xl font-bold mt-6">ACLs:</h4>
           <ul class="list-disc list-inside text-gray-700 mt-4">
             {#each owners as owner}
-              <li>{owner}</li>
+              <li>{owner.toText()}</li>
             {/each}
           </ul>
         </div>

@@ -154,6 +154,14 @@ For example to list courses, run the following command:
 ./cli listCourses
 ```
 
+### Seeding the backend canister
+
+To seed the backend canister with some data, run the following command:
+
+```bash
+./seed.sh
+```
+
 ### Running tests
 
 To run the tests, use the following command:

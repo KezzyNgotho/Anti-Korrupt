@@ -1,6 +1,3 @@
-// @ts-nocheck
-// svelte.config.js
-// @ts-ignore
 import adapter from '@sveltejs/adapter-auto';
 import sveltePreprocess from 'svelte-preprocess';
 

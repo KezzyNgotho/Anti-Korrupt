@@ -1,5 +1,5 @@
 import { AuthClient } from "@dfinity/auth-client";
-import { createActor } from "src/declarations/backend";
+import { createActor } from "../../declarations/backend";
 
 /**
  * Get the identity provider URL

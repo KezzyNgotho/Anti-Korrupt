@@ -236,10 +236,13 @@ type CanisterHttpResponsePayload =
 type Backend = 
  service {
    addAcls: (principal) -> () oneway;
+   addAclsText: (text) -> () oneway;
    addQuestion: (text, Question) -> (Result);
    changeApiKey: (text) -> (Result_2);
    changeOwner: (text) -> (Result_2);
    check_course_has_memory_vectors_entry: (text) -> (Result_1) query;
+   claimTokens: (text) -> (Result);
+   connectUserToPrincipal: (text) -> (Result);
    createCourse: (text, text) -> (Result);
    createResource: (text, text, text, ResourceType__1) -> (Result);
    delete_email_subscriber: (text) -> (bool);
@@ -265,11 +268,11 @@ type Backend =
                                      }) query;
    get_icrc1_token_canister_id: () -> (text) query;
    listCourses: () -> (vec SharedCourse) query;
-   registerUser: (text) -> (Result);
+   loginOrRegiser: (text) -> (Result);
    removeAcls: (principal) -> (Result_2);
    removeQuestion: (text, text) -> (Result_2);
    removeResource: (text, text) -> (Result_2);
-   sendMessage: (text, text, text) -> (Result_3);
+   sendMessage: (text, text, text, text) -> (Result_3);
    setAssistantId: (text) -> (Result_2);
    setRunProcess: (text, bool) -> (Result_2);
    set_icrc1_token_canister: (text) -> (Result_2);

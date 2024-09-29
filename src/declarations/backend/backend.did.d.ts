@@ -9,10 +9,13 @@ export type ApiError = { 'ZeroAddress' : null } |
   { 'Other' : string };
 export interface Backend {
   'addAcls' : ActorMethod<[Principal], undefined>,
+  'addAclsText' : ActorMethod<[string], undefined>,
   'addQuestion' : ActorMethod<[string, Question], Result>,
   'changeApiKey' : ActorMethod<[string], Result_2>,
   'changeOwner' : ActorMethod<[string], Result_2>,
   'check_course_has_memory_vectors_entry' : ActorMethod<[string], Result_1>,
+  'claimTokens' : ActorMethod<[string], Result>,
+  'connectUserToPrincipal' : ActorMethod<[string], Result>,
   'createCourse' : ActorMethod<[string, string], Result>,
   'createResource' : ActorMethod<
     [string, string, string, ResourceType__1],
@@ -38,11 +41,11 @@ export interface Backend {
   'get_email_subscribers' : ActorMethod<[], Array<[string, EmailSubscriber]>>,
   'get_icrc1_token_canister_id' : ActorMethod<[], string>,
   'listCourses' : ActorMethod<[], Array<SharedCourse>>,
-  'registerUser' : ActorMethod<[string], Result>,
+  'loginOrRegiser' : ActorMethod<[string], Result>,
   'removeAcls' : ActorMethod<[Principal], Result_2>,
   'removeQuestion' : ActorMethod<[string, string], Result_2>,
   'removeResource' : ActorMethod<[string, string], Result_2>,
-  'sendMessage' : ActorMethod<[string, string, string], Result_3>,
+  'sendMessage' : ActorMethod<[string, string, string, string], Result_3>,
   'setAssistantId' : ActorMethod<[string], Result_2>,
   'setRunProcess' : ActorMethod<[string, boolean], Result_2>,
   'set_icrc1_token_canister' : ActorMethod<[string], Result_2>,

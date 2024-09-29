@@ -7,20 +7,12 @@ import UAParser from 'ua-parser-js';
 import {
   backend,
   createActor as createBackendCanisterActor,
-  canisterId as backendCanisterId,
   idlFactory as backendIdlFactory,
 } from "../declarations/backend";
+import { createBackendActor, getIdentityProvider } from "./helpers/auth";
+import { BACKEND_CANISTER_ID, getHost } from "./helpers/utils";
 
-//__________Local vs Mainnet Development____________
-/* export const HOST =
-  backendCanisterId === "vee64-zyaaa-aaaai-acpta-cai"
-    ? "https://ic0.app" // Use in Production (on Mainnet)
-    : "http://localhost:4943"; // to be used with http://localhost:4943/?canisterId=ryjl3-tyaaa-aaaaa-aaaba-cai#/testroom */
-
-export const HOST =
-  process.env.NODE_ENV !== "development"
-    ? "https://ic0.app"
-    : "http://localhost:4943";
+export const HOST = getHost();
 
 // User's device and browser information
 export const webGpuSupportedBrowsers = "Google Chrome, Microsoft Edge";
@@ -62,7 +54,7 @@ selectedAiModelId.subscribe((value) => {
 
 export const currentExperienceId = writable(null);
 export let saveChatsUserSelection = writable(localStorage.getItem("saveChatsUserSelection") === "false" ? false : true); // values: true for "save" or false for "doNotSave" with true as default
-saveChatsUserSelection.subscribe((value) => localStorage.setItem("saveChatsUserSelection", value));
+saveChatsUserSelection.subscribe((value) => localStorage.setItem("saveChatsUserSelection", `${value}`));
 
 export let vectorStore = writable(null);
 
@@ -71,16 +63,16 @@ export let installAppDeferredPrompt = writable(null);
 let authClient : AuthClient;
 const APPLICATION_NAME = "DeVinci";
 const APPLICATION_LOGO_URL = "https://vdfyi-uaaaa-aaaai-acptq-cai.ic0.app/favicon.ico"; //TODO: change
-//"https%3A%2F%2Fx6occ%2Dbiaaa%2Daaaai%2Dacqzq%2Dcai.icp0.io%2Ffavicon.ico"
-//"https%3A%2F%2Fx6occ-biaaa-aaaai-acqzq-cai.icp0.io%2FFutureWebInitiative%5Fimg.png";
+
 const AUTH_PATH = "/authenticate/?applicationName="+APPLICATION_NAME+"&applicationLogo="+APPLICATION_LOGO_URL+"#authorize";
 
 const days = BigInt(30);
 const hours = BigInt(24);
 const nanosecondsPerHour = BigInt(3600000000000);
 
-type State = {
+export type State = {
   isAuthed: "plug" | "stoic" | "nfid" | "bitfinity" | "internetidentity" | null;
+  userId: string | null;
   backendActor: typeof backend;
   principal: Principal;
   accountId: string;
@@ -90,7 +82,8 @@ type State = {
 
 const defaultState: State = {
   isAuthed: null,
-  backendActor: createBackendCanisterActor(backendCanisterId, {
+  userId: localStorage.getItem("globalState") ? JSON.parse(localStorage.getItem("globalState")).userId : null,
+  backendActor: createBackendCanisterActor(BACKEND_CANISTER_ID, {
     agentOptions: { host: HOST },
   }),
   principal: null,
@@ -108,7 +101,26 @@ export const createStore = ({
 }) => {
   const { subscribe, update } = writable<State>(defaultState);
   let globalState: State;
-  subscribe((value) => globalState = value);
+  subscribe((value) => {
+    globalState = value;
+    localStorage.setItem("globalState", JSON.stringify({
+      isAuthed: value.isAuthed,
+      userId: value.userId,
+      accountId: value.accountId,
+    }));
+  });
+
+  const setUserId = async (fullname: string) => {
+    const { backendActor } = globalState;
+    const response = (await backendActor.loginOrRegiser(fullname)) as any;
+    if (response.err) {
+      return response.err;
+    }
+    update((state) => ({
+      ...state,
+      userId: response.ok,
+    }));
+  }
 
   const initUserSettings = async (backendActor) => {
     // Load the user's settings
@@ -173,7 +185,7 @@ export const createStore = ({
   };
 
   const initNfid = async (identity: Identity) => {
-    const backendActor = createBackendCanisterActor(backendCanisterId, {
+    const backendActor = createBackendCanisterActor(BACKEND_CANISTER_ID, {
       agentOptions: {
         identity,
         host: HOST,
@@ -206,18 +218,15 @@ export const createStore = ({
   const internetIdentityConnect = async () => {
     authClient = await AuthClient.create();
     if (await authClient.isAuthenticated()) {
-      const identity = await authClient.getIdentity();
+      const identity = authClient.getIdentity();
       initInternetIdentity(identity);
     } else {
       await authClient.login({
         onSuccess: async () => {
-          const identity = await authClient.getIdentity();
+          const identity = authClient.getIdentity();
           initInternetIdentity(identity);
         },
-        identityProvider:
-          process.env.DFX_NETWORK === "local"
-            ? `http://${process.env.INTERNET_IDENTITY_CANISTER_ID}.localhost:4943/#authorize`
-            : "https://identity.ic0.app/#authorize",
+        identityProvider: getIdentityProvider(),
         // Maximum authorization expiration is 30 days
         maxTimeToLive: days * hours * nanosecondsPerHour,
         windowOpenerFeatures:
@@ -229,21 +238,18 @@ export const createStore = ({
   };
 
   const initInternetIdentity = async (identity: Identity) => {
-    const backendActor = createBackendCanisterActor(backendCanisterId, {
-      agentOptions: {
-        identity,
-        host: HOST,
-      },
-    });
+    console.log("identity: ", identity.getPrincipal().toText());
+    const backendActor = await createBackendActor(identity);
 
     if (!backendActor) {
       console.warn("couldn't create backend actor");
       return;
     };
 
-    await initUserSettings(backendActor);
-
-    //let accounts = JSON.parse(await identity.accounts());
+    if (globalState.userId) {
+      const res = await backendActor.connectUserToPrincipal(globalState.userId);
+      console.log("connectUserToPrincipal: ", res);
+    }
 
     localStorage.setItem('isAuthed', "internetidentity"); // Set flag to indicate existing login for future sessions
 
@@ -251,7 +257,6 @@ export const createStore = ({
       ...state,
       backendActor,
       principal: identity.getPrincipal(),
-      //accountId: accounts[0].address, // we take the default account associated with the identity
       accountId: null,
       isAuthed: "internetidentity",
     }));
@@ -272,7 +277,7 @@ export const createStore = ({
   };
 
   const initStoic = async (identity: Identity & { accounts(): string }) => {
-    const backendActor = createBackendCanisterActor(backendCanisterId, {
+    const backendActor = createBackendCanisterActor(BACKEND_CANISTER_ID, {
       agentOptions: {
         identity,
         host: HOST,
@@ -361,7 +366,7 @@ export const createStore = ({
     };
 
     const backendActor = (await window.ic?.plug.createActor({
-      canisterId: backendCanisterId,
+      canisterId: BACKEND_CANISTER_ID,
       interfaceFactory: backendIdlFactory,
     })) as typeof backend;
 
@@ -445,7 +450,7 @@ export const createStore = ({
     }
 
     const backendActor = (await window.ic?.infinityWallet.createActor({
-      canisterId: backendCanisterId,
+      canisterId: BACKEND_CANISTER_ID,
       interfaceFactory: backendIdlFactory,
       host,
     })) as typeof backend;
@@ -552,6 +557,7 @@ export const createStore = ({
   };
 
   return {
+    setUserId,
     subscribe,
     update,
     plugConnect,
@@ -565,7 +571,7 @@ export const createStore = ({
 };
 
 export const store = createStore({
-  whitelist: [backendCanisterId],
+  whitelist: [BACKEND_CANISTER_ID],
   host: HOST,
 });
 

@@ -343,7 +343,7 @@ shared ({ caller }) actor class Backend() {
   // Connect user to principal
   public shared ({ caller }) func connectUserToPrincipal(userId : Text) : async Result<Text, ApiError> {
     let user = Map.get(members, thash, userId);
-    if (not Principal.isAnonymous(caller)) {
+    if (Principal.isAnonymous(caller)) {
       return #err(#Unauthorized);
     };
     switch (user) {
@@ -951,7 +951,7 @@ shared ({ caller }) actor class Backend() {
             };
 
             // Create instruction
-            var instruction = "Teach me about /TOPIC/. I want to learn about the topic in a way that's engaging and interactive.\nMy name is /NAME/\nPlease ask me questions, provide examples, and gauge my understanding as we go along. I'll respond with my thoughts and questions, and you can adjust your teaching approach accordingly. Let's get started!\n\nDesired Response:\nThe model should be able to provide references to the pages in the document where more information can be found.\nThe model should respond with a question or request that gauges the user's prior knowledge or understanding of the topic.\nThe model should provide examples or analogies to help illustrate key concepts.\nThe model should ask follow-up questions to ensure the user understands the material.\nThe model should adjust its teaching approach based on the user's responses.\nThe model should only respond to questions related to what it has been trained with using file search.\nThe model should refer to the user by their name, if the model does not know the user's name the model can ask.\nThe model should respond to questions not related to corruption with a message like \"I\'m here to help you learn about /TOPIC/. Let\'s focus on that for now.\" Any variant of it is okay.\nThe model response should be in markdown format.\n\nEvaluation Criteria:\nThe model\'s ability to engage the user in a conversation about the topic.\nThe model\'s ability to gauge the user\'s understanding and adjust its teaching approach accordingly.\nThe model\'s ability to provide clear and concise explanations of key concepts.\nThe model\'s ability to use examples and analogies to illustrate complex ideas.";
+            var instruction = "Teach me about /TOPIC/. I want to learn about the topic in a way that's engaging and interactive.My name is /NAME/Please ask me questions, provide examples, and gauge my understanding as we go along. I'll respond with my thoughts and questions, and you can adjust your teaching approach accordingly. Let's get started! Desired Response: The model should be able to provide references to the pages in the document where more information can be found. The model should respond with a question or request that gauges the user's prior knowledge or understanding of the topic. The model should provide examples or analogies to help illustrate key concepts. The model should ask follow-up questions to ensure the user understands the material. The model should adjust its teaching approach based on the user's responses. The model should only respond to questions related to what it has been trained with using file search. The model should refer to the user by their name, if the model does not know the user's name the model can ask. The model should respond to questions not related to corruption with a message like `I'm here to help you learn about /TOPIC/. Let's focus on that for now.` Any variant of it is okay. The model response should be in markdown format. Evaluation Criteria: The model's ability to engage the user in a conversation about the topic. The model's ability to gauge the user's understanding and adjust its teaching approach accordingly. The model's ability to provide clear and concise explanations of key concepts. The model's ability to use examples and analogies to illustrate complex ideas.";
             instruction := Text.replace(instruction, #text "/TOPIC/", courseTitle);
             instruction := Text.replace(instruction, #text "/NAME/", member.fullname);
 
@@ -960,6 +960,10 @@ shared ({ caller }) actor class Backend() {
               ("assistant_id", #String(ASSISTANT_ID)),
               ("instructions", #String(instruction)),
             ]);
+
+            Debug.print("RUN CREATE REQUEST");
+            Debug.print(JSON.show(data));
+
             let runResponse = await Request.post(
               "https://idempotent-proxy-cf-worker.zensh.workers.dev/v1/threads/" # threadId # "/runs",
               ?data,
@@ -967,6 +971,7 @@ shared ({ caller }) actor class Backend() {
               headers,
             );
 
+            Debug.print("RUN CREATE RESPONSE");
             Debug.print(JSON.show(runResponse.body));
 
             var runId = "";

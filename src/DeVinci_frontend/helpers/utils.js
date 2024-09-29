@@ -1,17 +1,43 @@
-import { Actor, HttpAgent } from "@dfinity/agent";
 import { store } from "../store";
+import { Actor, HttpAgent } from "@dfinity/agent";
 import { createActor, idlFactory } from "../../declarations/backend";
 
-let storeState;
-store.subscribe((value) => storeState = value);
+
+export const BACKEND_CANISTER_ID = process.env.BACKEND_CANISTER_ID;
 
 export async function submitEmailSignUpForm(emailAddress, pageSubmittedFrom) {
+  let storeState;
+  store.subscribe((value) => storeState = value);
   const input = {
     emailAddress: emailAddress,
     pageSubmittedFrom: pageSubmittedFrom,
   };
   let result = await storeState.backendActor.submit_signup_form(input);
   return result;
+}
+
+export function errorToText(variant) {
+  if (typeof variant === 'string') {
+    return variant;
+  }
+  if ('Unauthorized' in variant) {
+    return 'You are not authorized to perform this action.';
+  }
+  if ('InvalidTokenId' in variant) {
+    return 'Invalid token ID.';
+  }
+  if ('ZeroAddress' in variant) {
+    return 'Zero address.';
+  }
+  const keys = Object.keys(variant);
+  if (keys.length !== 0) {
+    const val = variant[keys[0]];
+    if (val) {
+      return val;
+    }
+    return keys[0];
+  }
+  return 'Unknown error.';
 }
 
 export const IsDev = process.env.NODE_ENV !== 'production';
@@ -21,7 +47,7 @@ export function getHost() {
 }
 
 export async function createBackend() {
-    return createActor(process.env.BACKEND_CANISTER_ID, {
+    return createActor(BACKEND_CANISTER_ID, {
         agentOptions: {
             host: getHost(),
         }
