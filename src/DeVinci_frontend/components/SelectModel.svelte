@@ -1,15 +1,16 @@
 <script>
   // @ts-nocheck
   
+  // Import dependencies and assets
   import { onMount } from 'svelte';
   import logo from '../../../public/image8.png';
   import Modal from './Modal1.svelte'; // Ensure Modal.svelte is correctly imported
   import { HttpAgent, Actor } from '@dfinity/agent';
   import { idlFactory as DevinciIDL } from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend';
   
+  // Declare reactive variables
   let activeSection = 'courses'; // Default section
   let selectedAnswers = {}; // Store selected answers for each quiz
-
   let currentLink = 'courses';
   let selectedSort = 'default';
   let courses = [];
@@ -25,7 +26,7 @@
   export let courseId = '';
   let selectedCourseId;
   export let isActive = false;
-  
+
   // Sample data for leaderboard and top users
   let leaderboard = [
       { name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
@@ -34,7 +35,7 @@
       { name: 'Dave', avatar: 'https://via.placeholder.com/40', score: 90 },
       { name: 'Eve', avatar: 'https://via.placeholder.com/40', score: 80 },
   ];
-  
+
   let topUsers = [
       { rank: 1, name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
       { rank: 2, name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
@@ -45,6 +46,7 @@
   let timeFrame = 'weekly';
   let quizzes = "";
   let questions = [];
+  
   let userProgress = {
       'introduction-to-ai-and-blockchain': 0,
       'advanced-ai-techniques': 70,
@@ -73,36 +75,36 @@
   let showModal = false;
   let modalContent = {};
   let tags = ['All', 'AI', 'Blockchain', 'DeFi', 'Fintech', 'Machine Learning', 'Ethics', 'Beginner', 'Intermediate', 'Advanced'];
-  
+
   // Function to handle navigation clicks
   function handleNavClick(section) {
       activeSection = section;
       document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
   }
-  
+
   // Backend initialization
   async function initializeBackend() {
       try {
           const agent = new HttpAgent({
               host: "https://ic0.app" // Use this for the Internet Computer mainnet
           });
-  
+
           if (process.env.NODE_ENV !== "production") {
               await agent.fetchRootKey();
           }
-  
+
           Devincibackend = Actor.createActor(DevinciIDL, {
               agent,
               canisterId: "pq6ox-maaaa-aaaak-albia-cai", // Replace with your actual canister ID
           });
-  
+
           console.log("Backend initialized successfully.");
       } catch (error) {
           console.error("Error initializing backend:", error);
           errorMessage = `Error initializing backend: ${error.message}`;
       }
   }
-  
+
   // Fetch courses from the backend
   async function fetchCourses() {
       try {
@@ -116,7 +118,7 @@
           errorMessage = `Error fetching courses: ${error.message}`;
       }
   }
-  
+
   // Filtered courses based on search query and selected tag
   $: filteredCourses = courses.filter(course => {
       const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -127,104 +129,104 @@
       if (selectedSort === 'progress') return (userProgress[b.id] || 0) - (userProgress[a.id] || 0);
       return 0; // default
   });
-  
+
   // Function to toggle See All Courses
   function toggleSeeAll() {
       seeAll = !seeAll;
   }
-  
+
   // Handle Tab Change in Rewards Section
   const handleTabChange = (tab) => {
       activeTab = tab;
   };
-// Fetch Random Questions for a Course
-// Fetch Questions for a Course
-// Fetch Questions for a Course
- // Fetch Questions for a Course
 
+  // Fetch Questions for a Course
+  async function fetchQuizzesForCourse(courseId) {
+      if (!courseId) {
+          console.error("Invalid courseId:", courseId);
+          return;
+      }
+      console.log("Fetching quizzes for course ID:", courseId);
+      try {
+          const result = await Devincibackend.getRandomCourseQuestions(courseId, 10);
+          console.log("Quizzes received for course ID", courseId, ":", result);
 
- function serializeBigInts(data) {
-  if (Array.isArray(data)) {
-    return data.map(item => serializeBigInts(item));
-  } else if (typeof data === 'object' && data !== null) {
-    return Object.fromEntries(
-      Object.entries(data).map(([key, value]) => [
-        key,
-        typeof value === 'bigint' ? value.toString() : serializeBigInts(value),
-      ])
-    );
+          if (result.err) {
+              console.error('Error fetching quizzes:', result.err);
+              quizzes = []; // Reset quizzes if there's an error
+              return; // Exit the function early
+          }
+
+          // Serialize BigInt properties if necessary
+          const serializedQuizzes = serializeBigInts(result.ok);
+          quizzes = serializedQuizzes.map(quiz => ({
+              id: quiz.id, // Assuming this is now a string
+              description: quiz.description,
+              options: quiz.options.map(option => ({
+                  text: option.description || "No description available", // Access description
+                  id: option.option // Include the option number if needed
+              })),
+          })) || []; // Ensure quizzes is an array
+
+          // Log quizzes to ensure they are correctly formatted
+          quizzes.forEach((quiz) => {
+              console.log(`Quiz ID: ${quiz.id}, Description: ${quiz.description}, Options: ${JSON.stringify(quiz.options)}`);
+          });
+
+      } catch (error) {
+          console.error('Error fetching quizzes:', error.message || error);
+          quizzes = []; // Reset quizzes if there's an error
+      }
   }
-  return data; // return primitive values as is
-}
 
+  // Select quiz option
+  let selectedOptions = {}; // Store selected options for each quiz
+  function selectOption(quizId, optionId) {
+      if (!selectedOptions[quizId]) {
+          selectedOptions[quizId] = [];
+      }
 
-async function fetchQuizzesForCourse(courseId) {
-  if (!courseId) {
-    console.error("Invalid courseId:", courseId);
-    return;
+      // Toggle the selection of the option
+      const index = selectedOptions[quizId].indexOf(optionId);
+      if (index === -1) {
+          selectedOptions[quizId].push(optionId); // Add optionId if not selected
+      } else {
+          selectedOptions[quizId].splice(index, 1); // Remove optionId if already selected
+      }
   }
-  console.log("Fetching quizzes for course ID:", courseId);
-  try {
-    const result = await Devincibackend.getRandomCourseQuestions(courseId, 10);
-    console.log("Quizzes received for course ID", courseId, ":", result);
 
-    if (result.err) {
-      console.error('Error fetching quizzes:', result.err);
-      quizzes = []; // Reset quizzes if there's an error
-      return; // Exit the function early
-    }
-
-    // Serialize BigInt properties if necessary
-    const serializedQuizzes = serializeBigInts(result.ok);
-    quizzes = serializedQuizzes.map(quiz => ({
-      id: quiz.id, // Assuming this is now a string
-      description: quiz.description,
-      options: quiz.options.map(option => ({
-        text: option.description || "No description available", // Access description
-        id: option.option // Include the option number if needed
-      })),
-    })) || []; // Ensure quizzes is an array
-
-    // Log quizzes to ensure they are correctly formatted
-    quizzes.forEach((quiz) => {
-      console.log(`Quiz ID: ${quiz.id}, Description: ${quiz.description}, Options: ${JSON.stringify(quiz.options)}`);
-    });
-
-  } catch (error) {
-    console.error('Error fetching quizzes:', error.message || error);
-    quizzes = []; // Reset quizzes if there's an error
-  }
-}
-
+  // Start quiz
   function startQuiz(quizId) {
-    // Logic to start the quiz, maybe redirect or open a new component
-    console.log(`Starting quiz with ID: ${quizId}`);
+      // Logic to start the quiz, maybe redirect or open a new component
+      console.log(`Starting quiz with ID: ${quizId}`);
   }
 
- 
-  
-    // Handle course selection
-    async function handleCourseChange() {
-        if (selectedCourseId) {
-            await fetchQuizzesForCourse(selectedCourseId, 10); // Fetch 10 questions
-        }
-    }
+  // Submit questions attempt
+  async function submitQuestionsAttempt(quizId) {
+      const selectedOptionIds = selectedOptions[quizId] || [];
 
-    // Optionally, you can fetch questions when the component mounts
-   /*  onMount(() => {
-        // Example: Automatically fetch questions for the default course when the component mounts
-        if (selectedCourseId) {
-            fetchQuizzesForCourse(selectedCourseId, 10);
-        }
-    }); */
+      try {
+          const result = await Devincibackend.submitQuestionsAttempt(quizId, selectedOptionIds); // Pass parameters separately
 
-   
+          if (result.ok) {
+              console.log('Submission successful:', result);
+              // Handle successful submission (e.g., show success message)
+          } else {
+              console.error('Submission failed:', result.err);
+              // Handle failure (e.g., show error message)
+          }
+      } catch (error) {
+          console.error('Error submitting quiz:', error);
+      }
+  }
 
-// Handle course selection
-// Handle course selection\
+  // Handle course selection
+  async function handleCourseChange() {
+      if (selectedCourseId) {
+          await fetchQuizzesForCourse(selectedCourseId); // Fetch 10 questions
+      }
+  }
 
-
-  
   // Open Modal for Course
   function openModal(course) {
       modalContent = course;
@@ -243,8 +245,16 @@ async function fetchQuizzesForCourse(courseId) {
       await initializeBackend();
       await fetchCourses();
   });
-  </script>
-  
+
+  // Serialize BigInt properties if necessary
+  function serializeBigInts(obj) {
+      const serialized = JSON.parse(JSON.stringify(obj, (key, value) =>
+          typeof value === 'bigint' ? value.toString() : value
+      ));
+      return serialized;
+  }
+</script>
+
   <!-- Add your HTML template below -->
   
 
@@ -438,65 +448,77 @@ async function fetchQuizzesForCourse(courseId) {
     </div>
   </section>
  
- 
-     <section id="quizzes" class="py-16 bg-gray-100" class:hidden={activeSection !== 'quizzes'}>
-  <div class="flex min-h-screen">
-    <!-- Sidebar (Courses) -->
-    <aside class="w-64 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] p-6">
-      <h2 class="text-3xl font-bold text-[#0277bd] mb-6">Courses</h2>
-      <ul class="space-y-4">
-        {#each courses as course}
-          <li>
-            <div 
-              on:click={() => fetchQuizzesForCourse(course.id)} 
-              class="p-3 bg-white rounded-lg shadow-lg cursor-pointer hover:bg-[#0277bd] hover:text-white transition-all duration-300"
-            >
-              {course.title}
-            </div>
-          </li>
-        {/each}
-      </ul>
-    </aside>
-
-    <!-- Main Content (Quizzes) -->
-    <main class="flex-grow p-10 bg-gray-100">
-      <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-      <p class="text-gray-700 mb-12 text-lg max-w-2xl">
-        Test your knowledge with our fun quizzes and earn tokens for your achievements.
-      </p>
-
-      <!-- Quizzes List -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {#if quizzes.length > 0}
-          {#each quizzes as quiz}
-            <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col">
-              <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.description}</h3>
-              <ul class="mb-4">
-                {#each quiz.options as option}
-               
-                <li class="text-lg text-gray-700">{`Option ${option.id}: ${option.text}`}</li>
-
+  <section id="quizzes" class="py-16 bg-gray-100" class:hidden={activeSection !== 'quizzes'}>
+    <div class="flex min-h-screen">
+        <!-- Sidebar (Courses) -->
+        <aside class="w-64 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] p-6">
+            <h2 class="text-3xl font-bold text-[#0277bd] mb-6">Courses</h2>
+            <ul class="space-y-4">
+                {#each courses as course}
+                    <li>
+                        <div 
+                            on:click={() => fetchQuizzesForCourse(course.id)} 
+                            class="p-3 bg-white rounded-lg shadow-lg cursor-pointer hover:bg-[#0277bd] hover:text-white transition-all duration-300"
+                        >
+                            {course.title}
+                        </div>
+                    </li>
                 {/each}
-              </ul>
-              <div class="flex justify-center">
-                <button
-                  on:click={() => startQuiz(quiz.id)}
-                  class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
-                >
-                  Start Quiz
-                </button>
-              </div>
+            </ul>
+        </aside>
+
+        <!-- Main Content (Quizzes) -->
+        <main class="flex-grow p-10 bg-gray-100">
+            <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+            <p class="text-gray-700 mb-12 text-lg max-w-2xl">
+                Test your knowledge with our fun quizzes and earn tokens for your achievements.
+            </p>
+
+            <!-- Quizzes List -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                {#if quizzes.length > 0}
+                    {#each quizzes as quiz}
+                        <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col">
+                            <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.description}</h3>
+                            <ul class="mb-4">
+                                {#each quiz.options as option}
+                                    <li class="text-lg text-gray-700">
+                                        <label>
+                                            <input 
+                                                type="checkbox" 
+                                                value={option.id} 
+                                                on:change={() => {
+                                                    const isSelected = selectedOptions[quiz.id]?.includes(option.id);
+                                                    if (isSelected) {
+                                                        selectedOptions[quiz.id] = selectedOptions[quiz.id].filter(id => id !== option.id);
+                                                    } else {
+                                                        selectedOptions[quiz.id] = selectedOptions[quiz.id] || [];
+                                                        selectedOptions[quiz.id].push(option.id);
+                                                    }
+                                                }} 
+                                            />
+                                            {`Option ${option.id}: ${option.text}`}
+                                        </label>
+                                    </li>
+                                {/each}
+                            </ul>
+                            <div class="flex justify-center">
+                                <button
+                                    on:click={() => submitQuestionsAttempt(quiz.id)}
+                                    class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
+                                >
+                                    Submit Answer
+                                </button>
+                            </div>
+                        </div>
+                    {/each}
+                {:else}
+                    <p class="text-gray-500 text-lg">Select a course to view available quizzes.</p>
+                {/if}
             </div>
-          {/each}
-        {:else}
-          <p class="text-gray-500 text-lg">Select a course to view available quizzes.</p>
-        {/if}
-      </div>
-      
-    </main>
-  </div>
-</section>
-  <!-- Rewards Section -->
+            </main>
+            </div>
+  </section>
   <section id="rewards" class="py-16 bg-gray-100" class:hidden={activeSection !== 'rewards'}>
     <div class="container mx-auto">
       <div class="text-center mb-12">
