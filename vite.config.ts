@@ -134,9 +134,6 @@ export default defineConfig({
     }),
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
-    nodeResolve({
-      extensions: [".js", ".ts"],
-    }),
   ],
   build: {
     target: "es2020",
