@@ -1,272 +1,253 @@
 <script>
-// @ts-nocheck
-
+  // @ts-nocheck
+  
   import { onMount } from 'svelte';
   import logo from '../../../public/image8.png';
   import Modal from './Modal1.svelte'; // Ensure Modal.svelte is correctly imported
- 
   import { HttpAgent, Actor } from '@dfinity/agent';
-  //import { idlFactory as DevinciIDL } from '../../home/keziah/PRETORIA/Hackathon202409AI/src/declarations';
-  import {idlFactory as DevinciIDL} from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend'
+  import { idlFactory as DevinciIDL } from '/home/keziah/PRETORIA/Hackathon202409AI/src/declarations/DeVinci_backend';
+  
   let activeSection = 'courses'; // Default section
+  let selectedAnswers = {}; // Store selected answers for each quiz
+
+  let currentLink = 'courses';
   let selectedSort = 'default';
-   let courses = [];
-    let courseCanister;  
-    let Devincibackend;
-  // Function to handle navigation clicks
-  function handleNavClick(section) {
-    activeSection = section;
-    document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
-  }
+  let courses = [];
+  let filteredCourses = [];
+  let courseCanister;
+  let Devincibackend;
   let errorMessage = '';
-
-  
-// Backend initialization
-
-async function initializeBackend() {
-  try {
-    const agent = new HttpAgent({
-      host: "https://ic0.app" // Use this for the Internet Computer mainnet
-    });
-
-    // Fetch root key only in development or local environments
-    if (process.env.NODE_ENV !== "production") {
-      await agent.fetchRootKey();
-    }
-
-    // Initialize the Actor for the backend canister
-    Devincibackend = Actor.createActor(DevinciIDL, {
-      agent,
-      canisterId: "pq6ox-maaaa-aaaak-albia-cai", // Replace with your actual canister ID
-    });
-
-    console.log("Backend initialized successfully.");
-  } catch (error) {
-    console.error("Error initializing backend:", error);
-    errorMessage = `Error initializing backend: ${error.message}`;
-  }
-}
-
-/* async function fetchCourses(retries = 3) {
-  try {
-    if (!Devincibackend) {
-      console.error("Devincibackend is not initialized");
-      return;
-    }
-
-    const fetchedCourses = await Devincibackend.listCourses(); // Call the method from the backend
-    // Update your store or state with the fetched courses
-    console.log("Fetched courses:", fetchedCourses);
-  } catch (error) {
-    if (retries > 0) {
-      console.warn(`Retrying fetchCourses... Attempts left: ${retries}`);
-      await fetchCourses(retries - 1); // Retry the fetch
-    } else {
-      console.error('Error fetching courses:', error);
-      errorMessage = `Error fetching courses: ${error.message}`;
-    }
-  }
-} */
-async function fetchCourses() {
-    try {
-      const response = await Devincibackend.listCourses(); // Adjust based on your actual method
-      filteredCourses = response; // Set the fetched courses to filteredCourses
-      tags = [...new Set(response.map(course => course.tag))]; // Assuming each course has a tag property
-      filterCourses(); // Call filter to initially set the display based on current filters
-    } catch (error) {
-      console.error("Error fetching courses:", error);
-    }
-  }
-// Call initializeBackend and fetchCourses on mount to populate courses data
-onMount(async () => {
-  await initializeBackend(); // Ensure backend is initialized first
-  await fetchCourses();
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-  let leaderboard = [
-    { name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
-    { name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
-    { name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
-    { name: 'Dave', avatar: 'https://via.placeholder.com/40', score: 90 },
-    { name: 'Eve', avatar: 'https://via.placeholder.com/40', score: 80 },
-  ];
-
-  // Sample data for top users
-  let topUsers = [
-    { rank: 1, name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
-    { rank: 2, name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
-    { rank: 3, name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
-  ];
-
-  // User's progress percentage (for progress tracker)
-  let userProgressPercentage = 75; // Example value
-
-  // Variable for selected timeframe
-  let timeFrame = 'weekly';
-
-  // Function to refresh the leaderboard based on selected timeframe
-  function refreshLeaderboard() {
-    // Logic to update the leaderboard based on the selected timeframe
-    // This is where you would normally fetch new data based on the timeFrame
-    console.log(`Leaderboard refreshed for ${timeFrame} timeframe.`);
-  }
-
-  // Example of how to handle the change in timeframe
-  $: {
-    refreshLeaderboard(); // Call refresh whenever the timeFrame changes
-  }
-
-
-  
   let seeAll = false;
   let activeTab = 'overview';
   let selectedReward = '';
   let userTokens = 50;
   let quizTimer = 60;
-
-  let quizzes = [
-    { title: "AI Basics Quiz", description: "Test your knowledge of AI fundamentals.", questions: 10 },
-    { title: "Blockchain 101 Quiz", description: "How well do you know blockchain technology?", questions: 12 },
-    { title: "DeFi & Fintech Quiz", description: "Assess your understanding of decentralized finance and fintech.", questions: 8 }
+  export let courseId = '';
+  let selectedCourseId;
+  export let isActive = false;
+  
+  // Sample data for leaderboard and top users
+  let leaderboard = [
+      { name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
+      { name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
+      { name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
+      { name: 'Dave', avatar: 'https://via.placeholder.com/40', score: 90 },
+      { name: 'Eve', avatar: 'https://via.placeholder.com/40', score: 80 },
   ];
-
+  
+  let topUsers = [
+      { rank: 1, name: 'Alice', avatar: 'https://via.placeholder.com/40', score: 120 },
+      { rank: 2, name: 'Bob', avatar: 'https://via.placeholder.com/40', score: 110 },
+      { rank: 3, name: 'Charlie', avatar: 'https://via.placeholder.com/40', score: 100 },
+  ];
+  
+  let userProgressPercentage = 75;
+  let timeFrame = 'weekly';
+  let quizzes = "";
+  let questions = [];
   let userProgress = {
-    'introduction-to-ai-and-blockchain': 0,
-    'advanced-ai-techniques': 70,
-    'blockchain-development-essentials': 45
+      'introduction-to-ai-and-blockchain': 0,
+      'advanced-ai-techniques': 70,
+      'blockchain-development-essentials': 45,
   };
-
-  let recentToken1 = 'Completed AI Basics Quiz: +10 tokens';
-  let recentToken2 = 'Completed Blockchain 101 Quiz: +12 tokens';
-  let recentToken3 = 'Completed DeFi & Fintech Quiz: +8 tokens';
-
-  let reward1 = 'Free Course Access';
-  let reward2 = 'Exclusive NFT Badge';
-  let reward3 = 'One-on-One Mentor Session';
-
-  let chatHistory = [
-    { date: '2024-09-01', topic: 'Customer Support' },
-    { date: '2024-08-15', topic: 'Learning Assistance' }
+  
+  let recentTokens = [
+      'Completed AI Basics Quiz: +10 tokens',
+      'Completed Blockchain 101 Quiz: +12 tokens',
+      'Completed DeFi & Fintech Quiz: +8 tokens',
   ];
-
+  
+  let rewards = [
+      'Free Course Access',
+      'Exclusive NFT Badge',
+      'One-on-One Mentor Session',
+  ];
+  
+  let chatHistory = [
+      { date: '2024-09-01', topic: 'Customer Support' },
+      { date: '2024-08-15', topic: 'Learning Assistance' },
+  ];
+  
   let searchQuery = '';
   let selectedTag = 'All';
-
   let showModal = false;
   let modalContent = {};
-
-
-
   let tags = ['All', 'AI', 'Blockchain', 'DeFi', 'Fintech', 'Machine Learning', 'Ethics', 'Beginner', 'Intermediate', 'Advanced'];
-
-  // Filter courses based on search and tags
+  
+  // Function to handle navigation clicks
+  function handleNavClick(section) {
+      activeSection = section;
+      document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });
+  }
+  
+  // Backend initialization
+  async function initializeBackend() {
+      try {
+          const agent = new HttpAgent({
+              host: "https://ic0.app" // Use this for the Internet Computer mainnet
+          });
+  
+          if (process.env.NODE_ENV !== "production") {
+              await agent.fetchRootKey();
+          }
+  
+          Devincibackend = Actor.createActor(DevinciIDL, {
+              agent,
+              canisterId: "pq6ox-maaaa-aaaak-albia-cai", // Replace with your actual canister ID
+          });
+  
+          console.log("Backend initialized successfully.");
+      } catch (error) {
+          console.error("Error initializing backend:", error);
+          errorMessage = `Error initializing backend: ${error.message}`;
+      }
+  }
+  
+  // Fetch courses from the backend
+  async function fetchCourses() {
+      try {
+          const response = await Devincibackend.listCourses();
+          courses = response; // Store the fetched courses
+          filteredCourses = courses; // Initialize filteredCourses
+          tags = [...new Set(response.map(course => course.tag))]; // Assuming each course has a tag property
+          filterCourses();
+      } catch (error) {
+          console.error("Error fetching courses:", error);
+          errorMessage = `Error fetching courses: ${error.message}`;
+      }
+  }
+  
   // Filtered courses based on search query and selected tag
   $: filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag = selectedTag === 'All' || course.tags.includes(selectedTag);
-    return matchesSearch && matchesTag;
+      const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTag = selectedTag === 'All' || course.tags.includes(selectedTag);
+      return matchesSearch && matchesTag;
   }).sort((a, b) => {
-    if (selectedSort === 'rating') return b.rating - a.rating;
-    if (selectedSort === 'progress') return (userProgress[b.id] || 0) - (userProgress[a.id] || 0);
-    return 0; // default
+      if (selectedSort === 'rating') return b.rating - a.rating;
+      if (selectedSort === 'progress') return (userProgress[b.id] || 0) - (userProgress[a.id] || 0);
+      return 0; // default
   });
-
+  
   // Function to toggle See All Courses
   function toggleSeeAll() {
-    seeAll = !seeAll;
+      seeAll = !seeAll;
   }
-
+  
   // Handle Tab Change in Rewards Section
   const handleTabChange = (tab) => {
-    activeTab = tab;
+      activeTab = tab;
   };
+// Fetch Random Questions for a Course
+// Fetch Questions for a Course
+// Fetch Questions for a Course
+ // Fetch Questions for a Course
 
-  // Start a Quiz
-  function startQuiz(quiz) {
-    let startTime = Date.now();
-    setTimeout(() => {
-      let endTime = Date.now();
-      let timeTaken = (endTime - startTime) / 1000;
-      if (timeTaken <= quizTimer) {
-        userTokens += 10;
-      }
-      console.log(`Quiz completed in ${timeTaken} seconds. Tokens earned: ${userTokens}`);
-    }, quizTimer * 1000);
+
+ function serializeBigInts(data) {
+  if (Array.isArray(data)) {
+    return data.map(item => serializeBigInts(item));
+  } else if (typeof data === 'object' && data !== null) {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        typeof value === 'bigint' ? value.toString() : serializeBigInts(value),
+      ])
+    );
   }
+  return data; // return primitive values as is
+}
 
-  // Handle Redemption Form Submission
-  const handleRedemption = (event) => {
-    event.preventDefault();
-    if (selectedReward) {
-      console.log(`Redeeming ${selectedReward}`);
-      userTokens -= getRewardCost(selectedReward);
-      recentToken1 = `Redeemed ${selectedReward}: -${getRewardCost(selectedReward)} tokens`;
-    } else {
-      console.error('Please select a reward.');
+
+async function fetchQuizzesForCourse(courseId) {
+  if (!courseId) {
+    console.error("Invalid courseId:", courseId);
+    return;
+  }
+  console.log("Fetching quizzes for course ID:", courseId);
+  try {
+    const result = await Devincibackend.getRandomCourseQuestions(courseId, 10);
+    console.log("Quizzes received for course ID", courseId, ":", result);
+
+    if (result.err) {
+      console.error('Error fetching quizzes:', result.err);
+      quizzes = []; // Reset quizzes if there's an error
+      return; // Exit the function early
     }
-  };
 
-  // Get Reward Cost
-  function getRewardCost(reward) {
-    const rewardCosts = {
-      'Free Course Access': 20,
-      'Exclusive NFT Badge': 50,
-      'One-on-One Mentor Session': 100
-    };
-    return rewardCosts[reward] || 0;
+    // Serialize BigInt properties if necessary
+    const serializedQuizzes = serializeBigInts(result.ok);
+    quizzes = serializedQuizzes.map(quiz => ({
+      id: quiz.id, // Assuming this is now a string
+      description: quiz.description,
+      options: quiz.options.map(option => ({
+        text: option.description || "No description available", // Access description
+        id: option.option // Include the option number if needed
+      })),
+    })) || []; // Ensure quizzes is an array
+
+    // Log quizzes to ensure they are correctly formatted
+    quizzes.forEach((quiz) => {
+      console.log(`Quiz ID: ${quiz.id}, Description: ${quiz.description}, Options: ${JSON.stringify(quiz.options)}`);
+    });
+
+  } catch (error) {
+    console.error('Error fetching quizzes:', error.message || error);
+    quizzes = []; // Reset quizzes if there's an error
+  }
+}
+
+  function startQuiz(quizId) {
+    // Logic to start the quiz, maybe redirect or open a new component
+    console.log(`Starting quiz with ID: ${quizId}`);
   }
 
-  // Connect Wallet
-  const connectWallet = () => {
-    console.log('Connecting wallet...');
-  };
-
-  // Load Chat
-  function loadChat(date, topic) {
-    console.log(`Loading chat for ${topic} on ${date}`);
-  }
-
-  // Start Learning
-  function startLearning() {
-    activeSection = 'chatbots'; // Set active section to chatbots
-    // Scroll to the chatbot section
-    const section = document.getElementById('chatboats');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
+ 
+  
+    // Handle course selection
+    async function handleCourseChange() {
+        if (selectedCourseId) {
+            await fetchQuizzesForCourse(selectedCourseId, 10); // Fetch 10 questions
+        }
     }
-  }
+
+    // Optionally, you can fetch questions when the component mounts
+   /*  onMount(() => {
+        // Example: Automatically fetch questions for the default course when the component mounts
+        if (selectedCourseId) {
+            fetchQuizzesForCourse(selectedCourseId, 10);
+        }
+    }); */
+
+   
+
+// Handle course selection
+// Handle course selection\
 
 
-  // Open Modal
+  
+  // Open Modal for Course
   function openModal(course) {
-    modalContent = course;
-    showModal = true;
+      modalContent = course;
+      showModal = true;
   }
-
+  
   // Close Modal
   function closeModal() {
-    showModal = false;
-    modalContent = {};
+      showModal = false;
+      modalContent = {};
   }
-
-  onMount(() => {
-    handleNavClick('courses');
+  
+  // On Mount, initialize backend and fetch courses
+  onMount(async () => {
+      console.log('Component mounted, fetching courses...');
+      await initializeBackend();
+      await fetchCourses();
   });
-</script>
+  </script>
+  
+  <!-- Add your HTML template below -->
+  
 
-<!-- Navbar -->
 <header class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-4 px-6 flex flex-col md:flex-row items-center justify-between shadow-lg fixed top-0 w-full z-50">
   <div class="flex items-center space-x-4">
     <a href="/" class="flex items-center space-x-2">
@@ -277,11 +258,17 @@ onMount(async () => {
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ['Courses', 'Chatbots','quizzes', 'Contact'] as link}
-      <a
-        on:click={() => handleNavClick(link.toLowerCase())}>
-      </a>
+    {#each ['Courses', 'Chatbots', 'Quizzes', 'Contact'] as link}
+    <a
+    on:click={() => handleNavClick(link.toLowerCase())}
+    class={`text-gray-800 hover:text-[#0077b6] transition duration-300 font-semibold text-lg border-b-2 border-[#0077b6]`}
+    aria-label={link}>
+    {link}
+  </a>
+  
+    {/each}
   </nav>
+  
 
 
 
@@ -450,34 +437,64 @@ onMount(async () => {
       </div>
     </div>
   </section>
+ 
+  <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]">
+  <div class="flex min-h-screen">
+    <!-- Sidebar (Courses) -->
+    <aside class="w-64 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] p-6">
+      <h2 class="text-3xl font-bold text-[#0277bd] mb-6">Courses</h2>
+      <ul class="space-y-4">
+        {#each courses as course}
+          <li>
+            <div 
+              on:click={() => fetchQuizzesForCourse(course.id)} 
+              class="p-3 bg-white rounded-lg shadow-lg cursor-pointer hover:bg-[#0277bd] hover:text-white transition-all duration-300"
+            >
+              {course.title}
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </aside>
 
-  <!-- Quizzes Section -->
-  <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]" class:hidden={activeSection !== 'quizzes'}>
-    <div class="container mx-auto text-center">
+    <!-- Main Content (Quizzes) -->
+    <main class="flex-grow p-10 bg-gray-100">
       <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-      <!-- <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
+      <p class="text-gray-700 mb-12 text-lg max-w-2xl">
         Test your knowledge with our fun quizzes and earn tokens for your achievements.
       </p>
- -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-        {#each quizzes as quiz}
-          <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col">
-            <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
-            <p class="text-gray-700 mb-4 flex-grow">{quiz.description}</p>
-            <div class="flex justify-center">
-              <button
-                on:click={() => startQuiz(quiz)}
-                class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
-              >
-                Start Quiz
-              </button>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </section>
 
+      <!-- Quizzes List -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+        {#if quizzes.length > 0}
+          {#each quizzes as quiz}
+            <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col">
+              <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.description}</h3>
+              <ul class="mb-4">
+                {#each quiz.options as option}
+               
+                <li class="text-lg text-gray-700">{`Option ${option.id}: ${option.text}`}</li>
+
+                {/each}
+              </ul>
+              <div class="flex justify-center">
+                <button
+                  on:click={() => startQuiz(quiz.id)}
+                  class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
+                >
+                  Start Quiz
+                </button>
+              </div>
+            </div>
+          {/each}
+        {:else}
+          <p class="text-gray-500 text-lg">Select a course to view available quizzes.</p>
+        {/if}
+      </div>
+      
+    </main>
+  </div>
+</section>
   <!-- Rewards Section -->
   <section id="rewards" class="py-16 bg-gray-100" class:hidden={activeSection !== 'rewards'}>
     <div class="container mx-auto">
@@ -641,7 +658,7 @@ onMount(async () => {
       </p>
 
       <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
-        <form action="#" method="POST" class="space-y-4">
+       <!--  <form action="#" method="POST" class="space-y-4">
           <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
             <input type="text" placeholder="Your Name" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl" required />
             <input type="email" placeholder="Your Email" class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl" required />
@@ -653,7 +670,7 @@ onMount(async () => {
           >
             Send Message
           </button>
-        </form>
+        </form> -->
       </div>
     </div>
   </section>
