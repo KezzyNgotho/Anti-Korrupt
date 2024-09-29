@@ -1,4 +1,4 @@
-<script lang="ts">
+ <script lang="ts">
   import ChatBubbleUser from './ChatBubbleUser.svelte';
   import ChatBubbleDeVinci from './ChatBubbleDeVinci.svelte';
 

@@ -1,39 +1,149 @@
 <script>
-  // @ts-nocheck
-
   import { onMount } from "svelte";
   import logo from "../../../public/image8.png";
-  import Modal from "./Modal1.svelte"; // Ensure Modal.svelte is correctly imported
-
-  import { HttpAgent, Actor } from "@dfinity/agent";
-  //import { idlFactory as DevinciIDL } from '../../home/keziah/PRETORIA/Hackathon202409AI/src/declarations';
-  import {
-    idlFactory as DevinciIDL,
-  } from "../../declarations/backend";
+  import hero from "../../../public/image9.png";
   import { createBackend } from "../helpers/utils";
-  let activeSection = "courses"; // Default section
-  let selectedSort = "default";
-  let courses = [];
-  let courseCanister;
-  // Function to handle navigation clicks
-  function handleNavClick(section) {
-    activeSection = section;
-    document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
-  }
-  let errorMessage = "";
 
-  // Backend initialization
+  //   let activeSection = "courses"; // Default section
+  //   let selectedSort = "default";
+  //   let courses = [];
+  //   let courseCanister;
+  //   function handleNavClick(section) {
+  //     activeSection = section;
+  //     document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
+  //   }
+  //   let errorMessage = "";
+
+  let resources = []; // Example resources array
+  let questions = []; // Example questions array
+  let principalID = "";
+  let owners = []; // List of owners with permissions
+
+  function addPermission() {
+    if (principalID && !owners.includes(principalID)) {
+      owners.push(principalID);
+      principalID = ""; // Reset input field
+    } else {
+      alert("Please enter a valid Principal ID.");
+    }
+  }
 
   async function fetchCourses() {
     try {
       const backend = await createBackend();
       const response = await backend.listCourses();
       courses = response; // Set the fetched courses to filteredCourses
-      filterCourses(); // Call filter to initially set the display based on current filters
     } catch (error) {
       console.error("Error fetching courses:", error);
     }
   }
+
+  // State Variables
+  let activeSection = "home"; // Default section
+  let selectedTab = "resources";
+
+  // Function to toggle See All Courses
+  function toggleSeeAll() {
+    seeAll = !seeAll;
+  }
+
+  // Variables for toggling views and state
+  let searchQuery = "";
+  let selectedSort = "default";
+  let showResources = false;
+  let showQuestions = false;
+  let selectedView = "resources"; // 'resources' or 'questions'
+
+  let newResource = {
+    title: "",
+    type: "",
+    file: null,
+  };
+
+  function handleViewCourse() {
+    showResources = true;
+    showQuestions = false;
+  }
+
+  function switchView(view) {
+    selectedView = view;
+  }
+  function switchTab(tab) {
+    selectedTab = tab;
+  }
+
+  function updateCourse(course) {
+    // Logic to update an existing course
+    console.log("Updating course: ", course);
+  }
+
+  function handleResourceUpload(event) {
+    newResource.file = event.target.files[0];
+  }
+
+  function addNewResource() {
+    if (newResource.title && newResource.type && newResource.file) {
+      resources.push({
+        title: newResource.title,
+        type: newResource.type,
+        url: URL.createObjectURL(newResource.file),
+      });
+      newResource = { title: "", type: "", file: null }; // Reset the form
+    } else {
+      alert("Please complete all fields.");
+    }
+  }
+
+  function generateRandomQuestion() {
+    const randomQuestion = {
+      question: "What is AI's role in the digital age?",
+      options: [
+        { text: "To replace human jobs", isCorrect: false },
+        { text: "To assist in decision-making", isCorrect: true },
+        { text: "To manage databases", isCorrect: false },
+        { text: "To generate random numbers", isCorrect: false },
+      ],
+    };
+    questions.push(randomQuestion);
+  }
+
+  const CourseStatus = {
+    InFix: "InFix",
+    InReview: "InReview",
+    Rejected: "Rejected",
+    Approved: "Approved",
+  };
+
+  function getEnum(value, enumType) {
+    return enumType[value] || "Unknown";
+  }
+
+  // Determine course status color
+  let statusColor = "";
+  const status = "Approved";
+
+  // Recent Tokens Data
+  let recentToken1 = "Completed AI Basics Quiz: +10 tokens";
+  let recentToken2 = "Completed Blockchain 101 Quiz: +12 tokens";
+  let recentToken3 = "Completed DeFi & Fintech Quiz: +8 tokens";
+
+  // Rewards Data
+  let reward1 = "Free Course Access";
+  let reward2 = "Exclusive NFT Badge";
+  let reward3 = "One-on-One Mentor Session";
+
+  // Chat History Data
+  let chatHistory = [
+    { date: "2024-09-01", topic: "Customer Support" },
+    { date: "2024-08-15", topic: "Learning Assistance" },
+  ];
+
+  let newCourse = {
+    title: "",
+    description: "",
+  };
+
+  // Functions
   // Call initializeBackend and fetchCourses on mount to populate courses data
   onMount(async () => {
     await fetchCourses();
@@ -118,49 +228,31 @@
     "blockchain-development-essentials": 45,
   };
 
-  let recentToken1 = "Completed AI Basics Quiz: +10 tokens";
-  let recentToken2 = "Completed Blockchain 101 Quiz: +12 tokens";
-  let recentToken3 = "Completed DeFi & Fintech Quiz: +8 tokens";
-
-  let reward1 = "Free Course Access";
-  let reward2 = "Exclusive NFT Badge";
-  let reward3 = "One-on-One Mentor Session";
-
-  let chatHistory = [
-    { date: "2024-09-01", topic: "Customer Support" },
-    { date: "2024-08-15", topic: "Learning Assistance" },
-  ];
-
-  let searchQuery = "";
-  let selectedTag = "All";
-
-  let showModal = false;
-  let modalContent = {};
-  
-  // Filter courses based on search
-  // Filtered courses based on search query and selected tag
-  $: filteredCourses = courses
-    .filter((course) => {
-      const matchesSearch = course.title
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      if (selectedSort === "progress")
-        return (userProgress[b.id] || 0) - (userProgress[a.id] || 0);
-      return 0; // default
-    });
-
-  // Function to toggle See All Courses
-  function toggleSeeAll() {
-    seeAll = !seeAll;
-  }
-
   // Handle Tab Change in Rewards Section
   const handleTabChange = (tab) => {
     activeTab = tab;
   };
+
+  // Handle Navigation Click
+  function handleNavClick(section) {
+    activeSection = section;
+    const element = document.getElementById(section);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  // Start Learning a Course
+  function startLearning(courseId) {
+    activeSection = "chatgpt-interface";
+    userTokens += 10; // Reward for starting the course
+    const element = document.getElementById("chatgpt-interface");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  let timeTaken = 45; // Example time taken to complete a quiz
 
   // Start a Quiz
   function startQuiz(quiz) {
@@ -173,6 +265,7 @@
       console.log(
         `Quiz completed in ${timeTaken} seconds. Tokens earned: ${userTokens}`,
       );
+      // Optionally, update recent tokens or show a success message
     }, quizTimer * 1000);
   }
 
@@ -208,30 +301,20 @@
     console.log(`Loading chat for ${topic} on ${date}`);
   }
 
-  // Start Learning
-  function startLearning() {
-    activeSection = "chatbots"; // Set active section to chatbots
-    // Scroll to the chatbot section
-    const section = document.getElementById("chatboats");
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth" });
+  function addNewCourse() {
+    if (newCourse.title && newCourse.description) {
+      courses.push({ ...newCourse });
+      newCourse = { title: "", description: "" }; // Reset form
+    } else {
+      alert("Please complete both title and description.");
     }
   }
 
-  // Open Modal
-  function openModal(course) {
-    modalContent = course;
-    showModal = true;
-  }
+  let courses = [];
 
-  // Close Modal
-  function closeModal() {
-    showModal = false;
-    modalContent = {};
-  }
-
+  // On Mount
   onMount(() => {
-    handleNavClick("courses");
+    handleNavClick("home"); // Set the default section on page load
   });
 </script>
 
@@ -246,14 +329,19 @@
         alt="LLM Logo"
         class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300"
       />
-      <h1 class="text-xl sm:text-2xl font-bold">LLMVerse</h1>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">LLMVerse</h1>
     </a>
   </div>
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ["Courses", "Chatbots", "quizzes", "Contact"] as link}
-      <a on:click={() => handleNavClick(link.toLowerCase())}> </a>
+    {#each ["Home", "Courses", "Chatbots", "Quizzes", "Rewards", "Contact", "admin"] as link}
+      <a
+        on:click={() => handleNavClick(link.toLowerCase())}
+        class="text-white hover:text-blue-300 border-b-2 border-transparent hover:border-white px-4 py-2 transition-all duration-300 cursor-pointer"
+      >
+        {link}
+      </a>
     {/each}
   </nav>
 
@@ -275,115 +363,310 @@
 </header>
 
 <!-- Main Content -->
-<main class="pt-20">
+<main class="">
   <!-- Add padding-top to offset the fixed navbar -->
 
-  <!-- Courses Section -->
-  <!-- <section id="start-learning" class="py-16 bg-[#90CAF9] text-white">
-  <div class="container mx-auto px-4 text-center">
-    <h2 class="text-3xl font-extrabold mb-4">Start Learning Today!</h2>
-    <p class="text-lg mb-6">
-      Unlock your potential with our expertly designed courses. 
-      Join our community and enhance your skills in AI and blockchain technologies.
-    </p>
-    <a href="#courses" class="bg-[#0077b6] hover:bg-[#005f7f] text-white font-semibold py-3 px-6 rounded-lg transition duration-300">
-      Explore Courses
-    </a>
-  </div>
-</section> -->
   <section
-    id="courses"
-    class="py-16 bg-gray-50"
-    class:hidden={activeSection !== "courses"}
+    id="home"
+    class:hidden={activeSection !== "home"}
+    class="hero min-h-screen flex items-center justify-center bg-[#0f535c] text-white"
   >
-    <div class="container mx-auto px-4">
-      <!-- Courses Section Header -->
-      <div class="text-center mb-12">
-        <h2
-          class="text-4xl font-extrabold text-[#0077b6] mb-4 transition duration-300 hover:underline"
-        >
-          Available Courses
-        </h2>
-        <p class="text-gray-600 text-lg max-w-2xl mx-auto">
-          Explore our curated courses designed to deepen your understanding of
-          AI and blockchain technologies.
+    <div
+      class="container mx-auto flex flex-col md:flex-row items-center justify-between p-8"
+    >
+      <!-- Left Side: Text Content -->
+      <div class="text-content md:w-1/2 text-center md:text-left">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+          Welcome to <span class="text-[#E1AD01]">Anti-Corrupt AI </span>Expand
+          your knowledge on corruption using
+        </h1>
+        <p class="text-lg md:text-xl mb-6">
+          Leveraging the power of blockchain and AI to enhance learning and
+          create an overall corruption free environment all over the world.
         </p>
+        <!-- Styled Buttons -->
+        <div class="flex justify-center md:justify-start space-x-4">
+          <button
+            class="bg-[#E1AD01] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            Sign Up
+          </button>
+          <button
+            class="bg-[#00C4CC] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            Go to learning
+          </button>
+        </div>
       </div>
 
-      <!-- Search and Filter -->
-      <div
-        class="flex flex-col md:flex-row justify-center items-center mb-8 space-y-4 md:space-y-0 md:space-x-4"
-      >
-        <input
-          type="text"
-          placeholder="Search courses..."
-          bind:value={searchQuery}
-          class="w-full md:w-1/3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+      <!-- Right Side: Image or Graphic -->
+      <div class="image-content md:w-1/2 mt-8 md:mt-0">
+        <img
+          src={logo}
+          alt="LLM Hero Graphic"
+          class="w-150 h-auto rounded-lg"
         />
-        <select
-          bind:value={selectedSort}
-          class="w-full md:w-1/4 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
-        >
-          <option value="default">Sort By</option>
-          <option value="rating">Rating</option>
-          <option value="progress">Progress</option>
-        </select>
-      </div>
-
-      <!-- Courses Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {#if filteredCourses.length > 0}
-          {#each filteredCourses as course}
-            <div
-              class="bg-white p-6 rounded-lg shadow-lg transition-transform duration-300 transform hover:scale-105 flex flex-col"
-            >
-              <!-- Course Image -->
-              <img
-                src={course.image || "default-image.jpg"}
-                alt={course.title}
-                class="w-full h-32 object-cover rounded-md mb-4 transition-transform duration-300 hover:scale-105"
-              />
-
-              <!-- Course Title -->
-              <h3 class="text-xl font-semibold text-[#0077b6] mb-1">
-                {course.title}
-              </h3>
-
-              <!-- Course Description -->
-              <p class="text-gray-800 mb-3 flex-grow">{course.summary}</p>
-
-              <!-- Start Learning Button -->
-              <button
-                on:click={() => startLearning(course.id)}
-                class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
-              >
-                Start Learning
-              </button>
-            </div>
-          {/each}
-        {:else}
-          <p class="text-center text-gray-600">
-            No courses available. Try adjusting your search or filters.
-          </p>
-        {/if}
-      </div>
-
-      <div class="mt-4 text-center">
-        <a
-          href="/all-courses"
-          class="text-[#0077b6] font-bold hover:underline"
-          aria-label="View All Courses"
-        >
-          View All Courses
-        </a>
+        <img
+          src={hero}
+          alt="LLM Hero Graphic"
+          class="w-150 h-auto rounded-lg"
+        />
       </div>
     </div>
   </section>
 
-  <!-- Chatbots Section -->
+  <!-- Courses Section -->
 
   <section
-    id="chatgpt-interface"
+    id="courses"
+    class="py-16 bg-gray-50 min-h-screen"
+    class:hidden={activeSection !== "courses"}
+  >
+    <div class="container mx-auto text-center">
+      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">
+        Available Courses
+      </h2>
+      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+        Explore our curated courses designed to deepen your understanding of AI
+        and blockchain technologies.
+      </p>
+
+      <section
+        id="courses"
+        class="py-16 bg-gray-50"
+        class:hidden={activeSection !== "courses"}
+      >
+        <div class="container mx-auto px-4">
+          <!-- Courses Section Header -->
+          <div class="text-center mb-12">
+            <h2
+              class="text-4xl font-extrabold text-[#0077b6] mb-4 transition duration-300 hover:underline"
+            >
+              Available Courses
+            </h2>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+              Explore our curated courses designed to deepen your understanding
+              of AI and blockchain technologies.
+            </p>
+          </div>
+
+          <!-- Search and Filter -->
+          <div
+            class="flex flex-col md:flex-row justify-center items-center mb-8 space-y-4 md:space-y-0 md:space-x-4"
+          >
+            <input
+              type="text"
+              placeholder="Search courses..."
+              bind:value={searchQuery}
+              class="w-full md:w-1/3 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+            />
+            <select
+              bind:value={selectedSort}
+              class="w-full md:w-1/4 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0077b6] transition duration-300 shadow-sm"
+            >
+              <option value="default">Sort By</option>
+              <option value="rating">Rating</option>
+              <option value="progress">Progress</option>
+            </select>
+          </div>
+
+          <!-- Courses Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {#each courses as { id, title, summary }}
+              <div
+                class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
+              >
+                <h3 class="text-xl font-semibold text-[#023e8a] mb-4">
+                  {title}
+                </h3>
+                <p class="text-gray-800 mb-4">{summary}</p>
+                <div class="h-2 bg-gray-200 rounded-full mb-4">
+                  <div
+                    class="h-full bg-[#023e8a] rounded-full"
+                    style="width: {userProgress[id] || 0}%"
+                  ></div>
+                </div>
+                <div class="flex justify-center space-x-4">
+                  <button
+                    on:click={() => startLearning(id)}
+                    class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
+                  >
+                    Start Learning
+                  </button>
+                </div>
+              </div>
+            {/each}
+            {#if courses.length === 0}
+              <p class="text-center text-gray-600">
+                No courses available. Try adjusting your search or filters.
+              </p>
+            {/if}
+          </div>
+
+          <div class="mt-4 text-center">
+            <a
+              href="/all-courses"
+              class="text-[#0077b6] font-bold hover:underline"
+              aria-label="View All Courses"
+            >
+              View All Courses
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chatbots Section -->
+
+      <section
+        id="chatgpt-interface"
+        class="py-16 bg-gray-100"
+        class:hidden={activeSection !== "chatbots"}
+      >
+        <div class="container mx-auto flex flex-col lg:flex-row max-w-6xl">
+          <!-- Sidebar for Chat History -->
+          <aside
+            class="w-full lg:w-1/4 bg-white shadow-lg rounded-lg p-6 mb-8 lg:mb-0 lg:mr-8"
+          >
+            <h3 class="text-xl font-bold text-gray-900 mb-6">Chat History</h3>
+            <div class="overflow-y-auto max-h-[500px]">
+              <ul class="space-y-4">
+                {#each chatHistory as { date, topic }}
+                  <li>
+                    <button
+                      class="w-full text-left p-2 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
+                      on:click={() => loadChat(date, topic)}
+                    >
+                      <div class="font-semibold text-gray-900">{topic}</div>
+                      <div class="text-sm text-gray-600">{date}</div>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          </aside>
+
+          <!-- Main Chat Interface -->
+          <div
+            class="w-full lg:w-3/4 bg-white shadow-lg rounded-lg p-6 flex flex-col h-[500px]"
+          >
+            <!-- Chat Window -->
+            <div
+              id="chat-window"
+              class="flex-1 overflow-y-auto mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50"
+            >
+              <!-- Example Chat Messages -->
+              <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">User:</div>
+                <div class="bg-gray-200 p-2 rounded-lg">
+                  Hello, how can I use the chatbot?
+                </div>
+              </div>
+              <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">Chatbot:</div>
+                <div class="bg-[#E1AD01] text-white p-2 rounded-lg">
+                  You can ask me anything, and I'll provide the best possible
+                  answers!
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="flex items-center border-t border-gray-300 pt-4">
+              <input
+                type="text"
+                id="chat-input"
+                class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01] transition duration-300"
+                placeholder="Type your message here..."
+              />
+              <button
+                id="send-btn"
+                class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quizzes Section -->
+      <section
+        id="quizzes"
+        class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]"
+        class:hidden={activeSection !== "quizzes"}
+      >
+        <div class="container mx-auto text-center">
+          <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+          <!-- <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
+        Test your knowledge with our fun quizzes and earn tokens for your achievements.
+      </p>
+ -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {#each quizzes as quiz}
+              <div
+                class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col"
+              >
+                <h3 class="text-2xl font-bold text-[#01579b] mb-4">
+                  {quiz.title}
+                </h3>
+                <p class="text-gray-700 mb-4 flex-grow">{quiz.description}</p>
+                <div class="flex justify-center">
+                  <button
+                    class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </section>
+
+      <!-- "See All" button -->
+      <div class="col-span-full text-center mt-6">
+        <button on:click={toggleSeeAll} class="text-[#023e8a] hover:underline">
+          {seeAll ? "Show Less" : "See All"}
+        </button>
+      </div>
+    </div>
+
+    {#if seeAll}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+        {#each [{ id: "defi-and-fintech", title: "DeFi and Fintech", description: "Explore the decentralized finance (DeFi) space and the future of fintech with blockchain." }, { id: "ai-ethics-and-governance", title: "AI Ethics and Governance", description: "Understand the ethical implications of AI and how governance frameworks are shaping its development." }] as { id, title, description }}
+          <div
+            class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
+          >
+            <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
+            <p class="text-gray-800 mb-4">{description}</p>
+            <div class="h-2 bg-gray-200 rounded-full mb-4">
+              <div
+                class="h-full bg-[#023e8a] rounded-full"
+                style="width: {userProgress[id] || 0}%"
+              ></div>
+            </div>
+            <div class="flex justify-center space-x-4">
+              <button
+                on:click={() => startLearning(id)}
+                class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
+              >
+                Start Learning
+              </button>
+              <button
+                class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105"
+              >
+                View Details
+              </button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
+  <!-- Chatbots Section -->
+  <section
+    id="chatgpt-interface min-h-screen"
     class="py-16 bg-gray-100"
     class:hidden={activeSection !== "chatbots"}
   >
@@ -440,7 +723,7 @@
           <input
             type="text"
             id="chat-input"
-            class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01] transition duration-300"
+            class="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E1AD01]"
             placeholder="Type your message here..."
           />
           <button
@@ -457,22 +740,23 @@
   <!-- Quizzes Section -->
   <section
     id="quizzes"
-    class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]"
+    class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] min-h-screen"
     class:hidden={activeSection !== "quizzes"}
   >
     <div class="container mx-auto text-center">
-      <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-      <!-- <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
-        Test your knowledge with our fun quizzes and earn tokens for your achievements.
+      <h2 class="text-4xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
+        Test your knowledge with our fun quizzes and earn tokens for your
+        achievements.
       </p>
- -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {#each quizzes as quiz}
           <div
-            class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col"
+            class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
           >
-            <h3 class="text-2xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
-            <p class="text-gray-700 mb-4 flex-grow">{quiz.description}</p>
+            <h3 class="text-xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
+            <p class="text-gray-700 mb-4">{quiz.description}</p>
             <div class="flex justify-center">
               <button
                 on:click={() => startQuiz(quiz)}
@@ -490,13 +774,13 @@
   <!-- Rewards Section -->
   <section
     id="rewards"
-    class="py-16 bg-gray-100"
+    class="py-16 bg-gray-100 min-h-screen"
     class:hidden={activeSection !== "rewards"}
   >
     <div class="container mx-auto">
       <div class="text-center mb-12">
-        <h2 class="text-5xl font-extrabold text-[#0f535c] mb-4">Rewards</h2>
-        <p class="text-gray-700 text-lg max-w-2xl mx-auto">
+        <h2 class="text-4xl font-extrabold text-[#0f535c] mb-4">Rewards</h2>
+        <p class="text-gray-600 text-lg max-w-2xl mx-auto">
           Earn tokens and redeem them for exciting rewards. Check out what you
           can get!
         </p>
@@ -637,7 +921,7 @@
               </p>
               <button
                 on:click={connectWallet}
-                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300 shadow-md hover:shadow-lg"
+                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
               >
                 Connect Wallet
               </button>
@@ -650,19 +934,19 @@
               >
               <select
                 id="reward-select"
-                class="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl"
+                class="block w-full p-3 border border-gray-300 rounded-lg"
                 bind:value={selectedReward}
               >
                 <option value="" disabled>Select a reward</option>
-                <option value="Free Course Access">{reward1}</option>
-                <option value="Exclusive NFT Badge">{reward2}</option>
-                <option value="One-on-One Mentor Session">{reward3}</option>
+                <option value="course">{reward1}</option>
+                <option value="nft">{reward2}</option>
+                <option value="mentor">{reward3}</option>
                 <!-- Add more rewards as needed -->
               </select>
 
               <button
                 type="submit"
-                class="w-full bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300 shadow-md hover:shadow-lg"
+                class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
               >
                 Redeem Now
               </button>
@@ -671,20 +955,17 @@
         {/if}
       </div>
     </div>
-
-    <!-- Modal for Course Details -->
-    <Modal {showModal} {modalContent} onClose={closeModal} />
   </section>
 
   <!-- Contact Section -->
   <section
     id="contact"
-    class="py-16 bg-gray-50"
+    class="py-16 bg-gray-50 min-h-screen"
     class:hidden={activeSection !== "contact"}
   >
     <div class="container mx-auto text-center">
-      <h2 class="text-5xl font-extrabold text-[#0f535c] mb-8">Contact Us</h2>
-      <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
+      <h2 class="text-4xl font-extrabold text-[#0f535c] mb-8">Contact Us</h2>
+      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
         Have questions or need assistance? Get in touch with us!
       </p>
 
@@ -696,19 +977,19 @@
             <input
               type="text"
               placeholder="Your Name"
-              class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl"
+              class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2"
               required
             />
             <input
               type="email"
               placeholder="Your Email"
-              class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl"
+              class="border border-gray-300 rounded-lg p-2 w-full md:w-1/2"
               required
             />
           </div>
           <textarea
             placeholder="Your Message"
-            class="border border-gray-300 rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-[#023e8a] transition duration-300 shadow-lg hover:shadow-xl"
+            class="border border-gray-300 rounded-lg p-2 w-full"
             rows="4"
             required
           ></textarea>
@@ -723,8 +1004,295 @@
     </div>
   </section>
 
+  <!-- Admin section -->
+  <section
+    id="admin"
+    class="py-16 bg-[#0f535c] text-white"
+    class:hidden={activeSection !== "admin"}
+  >
+    <div class="container mx-auto space-y-8">
+      <!-- Tab Navigation -->
+      <div class="flex justify-center space-x-8 mb-6">
+        <button
+          class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedTab ===
+          'courses'
+            ? 'bg-[#E1AD01] text-white'
+            : 'border-gray-300'}"
+          on:click={() => switchTab("courses")}
+        >
+          Courses
+        </button>
+        <button
+          class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedTab ===
+          'permissions'
+            ? 'bg-[#E1AD01] text-white'
+            : 'border-gray-300'}"
+          on:click={() => switchTab("permissions")}
+        >
+          Permissions
+        </button>
+      </div>
+
+      <!-- Courses Section -->
+      {#if selectedTab === "courses"}
+        <div class="space-y-8">
+          <!-- Add New Course Section -->
+          <div
+            class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8"
+          >
+            <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">
+              Add New Course
+            </h3>
+            <form on:submit|preventDefault={addNewCourse} class="space-y-4">
+              <input
+                type="text"
+                placeholder="Course Title"
+                class="block w-full p-2 border rounded-lg"
+                bind:value={newCourse.title}
+                required
+              />
+              <textarea
+                placeholder="Course Description"
+                class="block w-full p-2 border rounded-lg"
+                bind:value={newCourse.description}
+                required
+              ></textarea>
+              <button
+                type="submit"
+                class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+              >
+                + Add Course
+              </button>
+            </form>
+          </div>
+
+          <!-- Course List -->
+          {#each courses as course}
+            <div
+              class="max-w-xs min-w-[320px] bg-white text-[#0f535c] shadow-2xl rounded-md overflow-hidden mx-auto"
+            >
+              <div class="p-6">
+                <div class="text-center mb-5">
+                  <h2 class="text-2xl font-bold">{course.title}</h2>
+                  <p class="mt-2 text-gray-700">{course.description}</p>
+                  <span class="px-3 py-1 text-white bg-[#E1AD01] rounded"
+                    >Approved</span
+                  >
+                </div>
+
+                <div class="flex justify-around mb-5">
+                  <div class="text-center">
+                    <p class="font-semibold text-lg">50</p>
+                    <p class="text-gray-500">Enrolled</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="font-semibold text-lg">3</p>
+                    <p class="text-gray-500">Reports</p>
+                  </div>
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                  <button
+                    class="bg-[#0f535c] text-white py-2 px-4 rounded-md hover:bg-[#E1AD01] transition-all duration-200"
+                    on:click={handleViewCourse}
+                  >
+                    View Course
+                  </button>
+                  <button
+                    class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-all duration-200"
+                    on:click={() => updateCourse(course)}
+                  >
+                    Update Course
+                  </button>
+                </div>
+              </div>
+            </div>
+          {/each}
+
+          {#if showResources}
+            <!-- Toggle Buttons to Switch Between Resources and Questions -->
+            <div class="flex justify-center space-x-8 mb-6">
+              <button
+                class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
+                'resources'
+                  ? 'bg-[#E1AD01] text-white'
+                  : 'border-gray-300'}"
+                on:click={() => switchView("resources")}
+              >
+                Resources
+              </button>
+              <button
+                class="text-xl font-bold px-4 py-2 rounded-lg border transition-all duration-300 {selectedView ===
+                'questions'
+                  ? 'bg-[#E1AD01] text-white'
+                  : 'border-gray-300'}"
+                on:click={() => switchView("questions")}
+              >
+                Questions
+              </button>
+            </div>
+
+            <!-- Resource Section -->
+            {#if selectedView === "resources"}
+              <div class="space-y-8">
+                {#each resources as resource}
+                  <div
+                    class="max-w-xs min-w-[320px] bg-gray-900 text-white shadow-2xl rounded-md p-6 text-center mx-auto"
+                  >
+                    <h2 class="text-2xl font-bold">{resource.title}</h2>
+                    <p class="text-gray-400 mt-4">
+                      Resource Type: {resource.type}
+                    </p>
+
+                    <div class="mt-6">
+                      <span class="px-3 py-1 bg-gray-700 rounded"
+                        >{resource.type}</span
+                      >
+                    </div>
+
+                    <div class="mt-8">
+                      <a href={resource.url} target="_blank">
+                        <div class="flex space-x-4">
+                          <button
+                            class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                          >
+                            View Resource
+                          </button>
+                          <button
+                            class="bg-[#0f535c] hover:bg-[#E1AD01] text-white font-semibold py-2 px-4 rounded transition-all duration-200"
+                          >
+                            Delete Resource
+                          </button>
+                        </div>
+                      </a>
+                    </div>
+                  </div>
+                {/each}
+
+                <!-- Add New Resource Form -->
+                <div
+                  class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8"
+                >
+                  <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">
+                    Add New Resource
+                  </h3>
+                  <form
+                    on:submit|preventDefault={addNewResource}
+                    class="space-y-4"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Resource Title"
+                      class="block w-full p-2 border rounded-lg"
+                      bind:value={newResource.title}
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Resource Type (e.g., Book, Video)"
+                      class="block w-full p-2 border rounded-lg"
+                      bind:value={newResource.type}
+                      required
+                    />
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.mp4"
+                      class="block w-full p-2 border rounded-lg"
+                      on:change={handleResourceUpload}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+                    >
+                      Add Resource
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Questions Section -->
+            {#if selectedView === "questions"}
+              <div
+                class="bg-white text-[#0f535c] p-6 rounded-md shadow-lg mx-auto max-w-xl"
+              >
+                <h2 class="text-2xl font-bold text-center mb-6">Questions</h2>
+
+                {#each questions as question, i}
+                  <div class="mb-8">
+                    <p class="text-lg font-semibold">
+                      {i + 1}. {question.question}
+                    </p>
+                    <ul class="mt-2">
+                      {#each question.options as option}
+                        <li
+                          class="mt-2 px-4 py-2 rounded-lg {option.isCorrect
+                            ? 'bg-green-100 border-l-4 border-green-500'
+                            : 'bg-gray-100'}"
+                        >
+                          {option.text}
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/each}
+
+                <!-- Generate New Question Button -->
+                <div class="mt-8 text-center">
+                  <button
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-green-600 transition-all duration-300"
+                    on:click={generateRandomQuestion}
+                  >
+                    + Generate Question
+                  </button>
+                </div>
+              </div>
+            {/if}
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Permissions Section (Already existing) -->
+      {#if selectedTab === "permissions"}
+        <div
+          class="max-w-xl mx-auto bg-white text-gray-900 p-6 rounded-lg shadow-lg mt-8 min-h-screen"
+        >
+          <h3 class="text-2xl font-bold mb-4 text-[#0f535c]">
+            Manage Permissions
+          </h3>
+          <form on:submit|preventDefault={addPermission} class="space-y-4">
+            <input
+              type="text"
+              placeholder="Enter Principal ID"
+              class="block w-full p-2 border rounded-lg"
+              bind:value={principalID}
+              required
+            />
+            <button
+              type="submit"
+              class="bg-[#0f535c] text-white px-4 py-2 rounded-lg hover:bg-[#E1AD01] transition-all duration-300"
+            >
+              Add Permission
+            </button>
+          </form>
+
+          <!-- Display Owners -->
+          <h4 class="text-xl font-bold mt-6">Owners with Permissions:</h4>
+          <ul class="list-disc list-inside text-gray-700 mt-4">
+            {#each owners as owner}
+              <li>{owner}</li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+    </div>
+  </section>
+
   <!-- Footer -->
-  <footer class="bg-white text-[#0f535c] py-6 text-center">
+  <footer
+    class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-6 text-center"
+  >
     <div class="container mx-auto">
       <p>&copy; 2024 LLMVerse. All rights reserved.</p>
       <p class="mt-2">
@@ -736,12 +1304,3 @@
     </div>
   </footer>
 </main>
-
-<style>
-  /* Ensure responsiveness and proper spacing */
-  main {
-    padding-top: 5rem; /* Adjust if navbar height changes */
-  }
-
-  /* Modal Styles (if any additional styles are needed) */
-</style>
