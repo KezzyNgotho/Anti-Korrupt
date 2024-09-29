@@ -1,0 +1,29 @@
+[33m2272aca[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m HEAD@{0}: rebase (finish): returning to refs/heads/master
+[33m2272aca[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m HEAD@{1}: commit: quiz
+[33m0945a63[m HEAD@{2}: pull (start): checkout 0945a638606331db9ed932bcbb348ff905d6ed83
+[33m34896c4[m HEAD@{3}: commit: quizzes
+[33mfd6e20d[m HEAD@{4}: pull (finish): returning to refs/heads/master
+[33mfd6e20d[m HEAD@{5}: pull (pick): course integration
+[33mf244b8a[m HEAD@{6}: pull (pick): integration
+[33m4f93287[m HEAD@{7}: pull (start): checkout 4f93287e1e5c07879a63890978d4c36b559b34b2
+[33m9532fea[m HEAD@{8}: commit: course integration
+[33m8bde6dd[m HEAD@{9}: commit: integration
+[33m1ebfa1a[m HEAD@{10}: commit: learne
+[33m76d66b0[m HEAD@{11}: checkout: moving from master to master
+[33m76d66b0[m HEAD@{12}: checkout: moving from master to master
+[33m76d66b0[m HEAD@{13}: commit: Committing unstaged changes
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{14}: checkout: moving from master to master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{15}: checkout: moving from master to master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{16}: checkout: moving from master to master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{17}: checkout: moving from master to master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{18}: checkout: moving from review to master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{19}: checkout: moving from review to review
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{20}: checkout: moving from master to review
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{21}: rebase (finish): returning to refs/heads/master
+[33mb0d289a[m[33m ([m[1;31morigin/review[m[33m, [m[1;32mreview[m[33m)[m HEAD@{22}: rebase (continue): hey
+[33md53499c[m HEAD@{23}: pull origin master (start): checkout d53499c8d94abefbf0008e9188bc57973dbb4746
+[33ma0625a7[m HEAD@{24}: rebase (finish): returning to refs/heads/master
+[33ma0625a7[m HEAD@{25}: rebase (finish): refs/heads/master onto 04e28e4391f4add44969d7aa6391387eac79cb94
+[33ma0625a7[m HEAD@{26}: reset: moving to HEAD
+[33ma0625a7[m HEAD@{27}: checkout: moving from a0625a79b43cec4355b49748dcd66e0cc9acae7a to master
+[33ma0625a7[m HEAD@{28}: checkout: moving from 04e28e4391f4add44969d7aa6391387eac79cb94 to a0625a79b43cec4355b49748dcd66e0cc9acae7a

@@ -438,7 +438,8 @@ async function fetchQuizzesForCourse(courseId) {
     </div>
   </section>
  
-  <section id="quizzes" class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8]">
+ 
+     <section id="quizzes" class="py-16 bg-gray-100" class:hidden={activeSection !== 'quizzes'}>
   <div class="flex min-h-screen">
     <!-- Sidebar (Courses) -->
     <aside class="w-64 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] p-6">
