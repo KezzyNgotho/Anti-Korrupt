@@ -15,7 +15,7 @@ module {
     id : Nat;
   };
 
-  type ModelConvertible = {
+  public type ModelConvertible = {
     #resource : Vector.Vector<Types.Resource>;
     #question : Vector.Vector<Types.Question>;
   };
