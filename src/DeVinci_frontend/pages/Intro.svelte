@@ -12,12 +12,6 @@
 
 <LoginMenu />
 
-{#if !(deviceType === 'desktop' || deviceType === 'Android')}
-  <UnsupportedDeviceBanner />
-{:else if !supportsWebGpu}
-  <UnsupportedBrowserBanner />
-{/if}
-
 <ChatInterface />
 
 <Footer />

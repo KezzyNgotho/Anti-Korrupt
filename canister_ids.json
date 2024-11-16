@@ -4,5 +4,8 @@
   },
   "backend": {
     "ic": "pq6ox-maaaa-aaaak-albia-cai"
+  },
+  "icrc1_ledger_canister": {
+    "ic": "nwffg-myaaa-aaaak-amveq-cai"
   }
 }

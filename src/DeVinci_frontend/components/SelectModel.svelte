@@ -15,7 +15,11 @@
     RunStatus,
   } from "../helpers/enum";
   import SvelteMarkdown from "svelte-markdown";
-  import { createLedgerCanister, M_DECIMALS, M_SYMBOL } from "../helpers/ledger";
+  import {
+    createLedgerCanister,
+    M_DECIMALS,
+    M_SYMBOL,
+  } from "../helpers/ledger";
 
   // State Variables
 
@@ -110,15 +114,16 @@
    * @param {string} userId
    */
   async function getUserProfile(userId) {
+    const backend = await createBackend();
     if (userId) {
-      const response = await storeState.backendActor.getProfile(userId);
+      const response = await backend.getProfile(userId);
       if (response["err"]) {
         alert(`Error fetching user profile: ${errorToText(response["err"])}`);
         return;
       }
       user = response["ok"];
     } else {
-      alert("Please connect your wallet to view your profile.");
+      console.log("Please connect your wallet to view your profile.");
     }
   }
 
@@ -137,14 +142,14 @@
     let symbol = "";
     for (const value of metadata) {
       if (value[0] === M_SYMBOL) {
-        symbol = value[1].Text;
+        symbol = value[1]['Text'];
         break;
       }
     }
     let decimals = 0;
     for (const value of metadata) {
       if (value[0] === M_DECIMALS) {
-        decimals = parseInt(value[1].Nat);
+        decimals = parseInt(value[1]['Nat']);
         break;
       }
     }
@@ -406,24 +411,10 @@
   let userTokens = "-";
   let quizTimer = 60;
 
-  let quizzes = [
-    {
-      title: "AI Basics Quiz",
-      description: "Test your knowledge of AI fundamentals.",
-      questions: 10,
-    },
-    {
-      title: "Blockchain 101 Quiz",
-      description: "How well do you know blockchain technology?",
-      questions: 12,
-    },
-    {
-      title: "DeFi & Fintech Quiz",
-      description:
-        "Assess your understanding of decentralized finance and fintech.",
-      questions: 8,
-    },
-  ];
+  /**
+   * @type {import("../../declarations/backend/backend.did").Question[]}
+   */
+  let quizzes = [];
 
   let userProgress = {
     "introduction-to-ai-and-blockchain": 0,
@@ -431,9 +422,37 @@
     "blockchain-development-essentials": 45,
   };
 
+  /**
+   * @param {string} userId
+   */
+  async function getUserCoursesProgress(userId) {
+    if (userId) {
+      const backend = await createBackend();
+      for (const course of courses) {
+        const response = await backend.getUserEnrolledCourse(course.id, userId);
+        if (response["err"]) {
+          console.error(
+            `Error fetching course progress: ${errorToText(response["err"])}`,
+          );
+          return;
+        }
+        userProgress[course.id] = response["ok"].completed ? 100 : 0;
+      }
+    }
+  }
+
+  $: {
+    if (courses.length > 0 && storeState.userId) {
+      getUserCoursesProgress(storeState.userId);
+    }
+  }
+
   // Handle Tab Change in Rewards Section
   const handleTabChange = (/** @type {string} */ tab) => {
     activeTab = tab;
+    if (tab === "redeem") {
+      getUserProfile(storeState.userId);
+    }
   };
 
   // Handle Navigation Click
@@ -454,11 +473,9 @@
    * @returns {Promise<import("../../declarations/backend/backend.did").SharedEnrolledCourse>}
    */
   async function fetchCourseMessages(courseId, userId) {
+    const backend = await createBackend();
     // Logic to fetch messages for the selected course
-    const result = await storeState.backendActor.getUserEnrolledCourse(
-      courseId,
-      userId,
-    );
+    const result = await backend.getUserEnrolledCourse(courseId, userId);
     if (result["err"]) {
       alert(`Error fetching course messages: ${errorToText(result["err"])}`);
       return;
@@ -473,8 +490,9 @@
    * @param {string} runId
    */
   async function pollRunStatus(runId) {
+    const backend = await createBackend();
     while (true) {
-      const response = await storeState.backendActor.getRunStatus(runId);
+      const response = await backend.getRunStatus(runId);
       console.log("PollRunStatus", response);
       if (response["ok"]) {
         const enumStatus = getEnum(response["ok"], RunStatus);
@@ -497,7 +515,8 @@
    * @param {string} userId
    */
   async function getRunMessage(runId, userId) {
-    const response = await storeState.backendActor.getRunMessage(runId, userId);
+    const backend = await createBackend();
+    const response = await backend.getRunMessage(runId, userId);
     if (response["ok"]) {
       return response["ok"].content;
     } else {
@@ -514,16 +533,14 @@
    * @param {string} userId
    */
   async function sendThreadMessage(threadId, message, userId) {
+    const backend = await createBackend();
     try {
+      sendState = "Sending";
       isSending = true;
-      const response = await storeState.backendActor.sendMessage(
-        threadId,
-        message,
-        "",
-        userId,
-      );
+      const response = await backend.sendMessage(threadId, message, "", userId);
       console.log("sendThreadMessage", response);
       if (response["ok"].Completed) {
+        sendState = "Thinking";
         const runId = response["ok"].Completed.runId;
         const status = await pollRunStatus(runId);
         console.log("Got success status", status);
@@ -534,6 +551,7 @@
         }
         switch (status) {
           case "Completed":
+            sendState = "Finally";
             const content = await getRunMessage(runId, userId);
             if (content) {
               messages = [
@@ -563,8 +581,13 @@
     }
   }
 
+  let sendState = "";
   const sendMessage = async () => {
     if (messageText) {
+      messages = [
+        ...messages,
+        { content: messageText, runId: [""], role: { User: null } },
+      ];
       await sendThreadMessage(
         enrolledCourse.threadId,
         messageText,
@@ -595,15 +618,13 @@
    * @param {string} courseId
    */
   async function startLearning(courseId) {
+    const backend = await createBackend();
     if (!storeState.userId) {
       await setUserId();
     }
 
     // Enroll user in course
-    const result = await storeState.backendActor.enrollCourse(
-      courseId,
-      storeState.userId,
-    );
+    const result = await backend.enrollCourse(courseId, storeState.userId);
     if ("err" in result) {
       alert(`Error enrolling in course: ${errorToText(result.err)}`);
       return;
@@ -705,6 +726,63 @@
     }
   }
 
+  const QUESTION_COUNT = 5n;
+
+  /**
+   * @param {string} id
+   */
+  async function fetchQuizzesForCourse(id) {
+    const backend = await createBackend();
+    const response = await backend.getRandomCourseQuestions(id, QUESTION_COUNT);
+    if (response["err"]) {
+      alert(`Error fetching quizzes: ${errorToText(response["err"])}`);
+      return;
+    }
+    quizzes = response["ok"];
+    selectedCourseId = id;
+    selectedOptions = {};
+  }
+
+  let selectedOptions = {};
+  let isSubmittingQuiz = false;
+  async function handleSubmitQuiz() {
+    // Logic to submit quiz answers
+    console.log("Quiz submitted");
+    console.log("Selected Options", selectedOptions);
+    const backend = await createBackend();
+    if (!storeState.userId) {
+      setUserId();
+    }
+
+    // Validate that all questions have been answered
+    if (Object.keys(selectedOptions).length < QUESTION_COUNT) {
+      alert("Please answer all questions before submitting.");
+      return;
+    }
+
+    const answers = Object.entries(selectedOptions).map(
+      ([questionId, option]) => ({
+        questionId,
+        option,
+      }),
+    );
+    try {
+      isSubmittingQuiz = true;
+      const response = await backend.submitQuestionsAttempt(
+        selectedCourseId,
+        answers,
+        storeState.userId,
+      );
+      if (response["err"]) {
+        alert(`Error submitting quiz: ${errorToText(response["err"])}`);
+        return;
+      }
+      alert("Quiz submitted successfully. You have earned 10 ACT");
+    } finally {
+      isSubmittingQuiz = false;
+    }
+  }
+
   // On Mount
   onMount(() => {
     handleNavClick("home"); // Set the default section on page load
@@ -728,7 +806,7 @@
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ["Home", "Courses", "Chatbots", "Quizzes", "Rewards", "Contact", "admin"] as link}
+    {#each ["Home", "Courses", "Quizzes", "Rewards", "Contact", "admin"] as link}
       <!-- svelte-ignore a11y-invalid-attribute -->
       <a
         href="#"
@@ -789,7 +867,7 @@
       <div class="text-content md:w-1/2 text-center md:text-left">
         <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
           Welcome to <span class="text-[#E1AD01]">Anti-Corrupt AI </span>Expand
-          your knowledge on corruption using
+          your knowledge on corruption using AI and blockchain
         </h1>
         <p class="text-lg md:text-xl mb-6">
           Leveraging the power of blockchain and AI to enhance learning and
@@ -895,7 +973,7 @@
                     on:click={() => startLearning(id)}
                     class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
                   >
-                    Start Learning
+                    {userProgress[id] === 100 ? "Completed" : "Start Learning"}
                   </button>
                 </div>
               </div>
@@ -927,17 +1005,13 @@
       >
         <div class="container mx-auto text-center">
           <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-          <!-- <p class="text-gray-700 mb-12 text-lg max-w-2xl mx-auto">
-        Test your knowledge with our fun quizzes and earn tokens for your achievements.
-      </p>
- -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {#each quizzes as quiz}
+            {#each quizzes as quiz, i}
               <div
                 class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col"
               >
                 <h3 class="text-2xl font-bold text-[#01579b] mb-4">
-                  {quiz.title}
+                  {i + 1}
                 </h3>
                 <p class="text-gray-700 mb-4 flex-grow">{quiz.description}</p>
                 <div class="flex justify-center">
@@ -1043,10 +1117,14 @@
           <button
             id="send-btn"
             on:click={sendMessage}
+            on:keydown={(e) => {
+              console.log(e);
+              e.key === "Enter" && sendMessage();
+            }}
             disabled={isSending}
             class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
           >
-            {isSending ? "Sending..." : "Send"}
+            {isSending ? `${sendState}...` : "Send"}
           </button>
         </div>
       </div>
@@ -1056,34 +1134,83 @@
   <!-- Quizzes Section -->
   <section
     id="quizzes"
-    class="py-16 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] min-h-screen"
+    class="py-16 bg-gray-100"
     class:hidden={activeSection !== "quizzes"}
   >
-    <div class="container mx-auto text-center">
-      <h2 class="text-4xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
-      <p class="text-gray-600 mb-12 text-lg max-w-2xl mx-auto">
-        Test your knowledge with our fun quizzes and earn tokens for your
-        achievements.
-      </p>
+    <div class="flex min-h-screen">
+      <!-- Sidebar (Courses) -->
+      <aside class="w-64 bg-gradient-to-r from-[#e0f7fa] to-[#d7d8d8] p-6">
+        <h2 class="text-3xl font-bold text-[#0277bd] mb-6">Courses</h2>
+        <ul class="space-y-4">
+          {#each courses as course}
+            <li>
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <div
+                on:click={() => fetchQuizzesForCourse(course.id)}
+                class="p-3 bg-white rounded-lg shadow-lg cursor-pointer hover:bg-[#0277bd] hover:text-white transition-all duration-300"
+              >
+                {course.title}
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </aside>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {#each quizzes as quiz}
-          <div
-            class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
-          >
-            <h3 class="text-xl font-bold text-[#01579b] mb-4">{quiz.title}</h3>
-            <p class="text-gray-700 mb-4">{quiz.description}</p>
+      <!-- Main Content (Quizzes) -->
+      <main class="flex-grow p-10 bg-gray-100">
+        <h2 class="text-5xl font-extrabold text-[#0277bd] mb-8">Quizzes</h2>
+        <p class="text-gray-700 mb-12 text-lg max-w-2xl">
+          Test your knowledge with our fun quizzes and earn tokens for your
+          achievements.
+        </p>
+
+        <!-- Quizzes List -->
+        {#if quizzes.length > 0}
+          <form on:submit|preventDefault={handleSubmitQuiz}>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+              {#each quizzes as quiz}
+                <div
+                  class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 flex flex-col"
+                >
+                  <h3 class="text-2xl font-bold text-[#01579b] mb-4">
+                    {quiz.description}
+                  </h3>
+                  <ul class="mb-4">
+                    {#each quiz.options as option}
+                      <li class="text-lg text-gray-700">
+                        <label>
+                          <input
+                            type="radio"
+                            value={option.option}
+                            name={quiz.id}
+                            on:change={() => {
+                              selectedOptions[quiz.id] = option.option;
+                            }}
+                          />
+                          {option.description}
+                        </label>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              {/each}
+            </div>
             <div class="flex justify-center">
               <button
-                on:click={() => startQuiz(quiz)}
+                disabled={isSubmittingQuiz}
+                type="submit"
                 class="bg-[#01579b] text-white px-6 py-3 rounded-full shadow-lg hover:bg-[#0288d1] transition-all duration-300 transform hover:scale-105"
               >
-                Start Quiz
+                {isSubmittingQuiz ? "Submitting..." : "Submit Quiz"}
               </button>
             </div>
-          </div>
-        {/each}
-      </div>
+          </form>
+        {:else}
+          <p class="text-gray-500 text-lg">
+            Select a course to view available quizzes.
+          </p>
+        {/if}
+      </main>
     </div>
   </section>
 
