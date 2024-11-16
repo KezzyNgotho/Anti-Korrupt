@@ -15,9 +15,6 @@
   onMount(async () => {
     // Check login state or other setup
     await store.checkExistingLoginAndConnect();
-    if ($store.isAuthed) {
-      // Handle authentication status
-    }
   });
 </script>
 

@@ -180,11 +180,6 @@
     }
   }
 
-  // Function to toggle See All Courses
-  function toggleSeeAll() {
-    seeAll = !seeAll;
-  }
-
   let viewingCourseId = "";
   /**
    * @param {string} id
@@ -406,7 +401,6 @@
     await fetchCourses();
   });
 
-  let seeAll = false;
   let activeTab = "overview";
   let userTokens = "-";
   let quizTimer = 60;
@@ -1026,46 +1020,7 @@
           </div>
         </div>
       </section>
-
-      <!-- "See All" button -->
-      <div class="col-span-full text-center mt-6">
-        <button on:click={toggleSeeAll} class="text-[#023e8a] hover:underline">
-          {seeAll ? "Show Less" : "See All"}
-        </button>
-      </div>
     </div>
-
-    {#if seeAll}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-        {#each [{ id: "defi-and-fintech", title: "DeFi and Fintech", description: "Explore the decentralized finance (DeFi) space and the future of fintech with blockchain." }, { id: "ai-ethics-and-governance", title: "AI Ethics and Governance", description: "Understand the ethical implications of AI and how governance frameworks are shaping its development." }] as { id, title, description }}
-          <div
-            class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:scale-105"
-          >
-            <h3 class="text-xl font-semibold text-[#023e8a] mb-4">{title}</h3>
-            <p class="text-gray-800 mb-4">{description}</p>
-            <div class="h-2 bg-gray-200 rounded-full mb-4">
-              <div
-                class="h-full bg-[#023e8a] rounded-full"
-                style="width: {userProgress[id] || 0}%"
-              ></div>
-            </div>
-            <div class="flex justify-center space-x-4">
-              <button
-                on:click={() => startLearning(id)}
-                class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
-              >
-                Start Learning
-              </button>
-              <button
-                class="bg-transparent border border-[#023e8a] text-[#023e8a] px-4 py-2 rounded-full shadow-md hover:bg-[#023e8a] hover:text-white transition-all duration-300 transform hover:scale-105"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
   </section>
 
   <!-- Chatbots Section -->
