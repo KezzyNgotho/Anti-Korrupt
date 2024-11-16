@@ -4,7 +4,6 @@ import fetch from "isomorphic-fetch";
 import { idlFactory } from "../declarations/backend/backend.did";
 
 export const CANISTER_ID = canisterIds.backend.local;
-console.log("CANISTER_ID", CANISTER_ID);
 
 export const createActor = (canisterId, options = {}) => {
   const agent = options.agent || HttpAgent.createSync({ ...options.agentOptions });

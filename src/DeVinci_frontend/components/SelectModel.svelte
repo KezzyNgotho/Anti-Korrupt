@@ -142,14 +142,14 @@
     let symbol = "";
     for (const value of metadata) {
       if (value[0] === M_SYMBOL) {
-        symbol = value[1]['Text'];
+        symbol = value[1]["Text"];
         break;
       }
     }
     let decimals = 0;
     for (const value of metadata) {
       if (value[0] === M_DECIMALS) {
-        decimals = parseInt(value[1]['Nat']);
+        decimals = parseInt(value[1]["Nat"]);
         break;
       }
     }
@@ -800,7 +800,7 @@
         alt="LLM Logo"
         class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300"
       />
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">LLMVerse</h1>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">Anti-Korrupt</h1>
     </a>
   </div>
 
@@ -866,7 +866,7 @@
       <!-- Left Side: Text Content -->
       <div class="text-content md:w-1/2 text-center md:text-left">
         <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-          Welcome to <span class="text-[#E1AD01]">Anti-Corrupt AI </span>Expand
+          Welcome to <span class="text-[#E1AD01]">Anti-Korrupt AI </span>Expand
           your knowledge on corruption using AI and blockchain
         </h1>
         <p class="text-lg md:text-xl mb-6">
@@ -1755,7 +1755,7 @@
     class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-6 text-center"
   >
     <div class="container mx-auto">
-      <p>&copy; 2024 LLMVerse. All rights reserved.</p>
+      <p>&copy; 2024 Anti-Korrupt. All rights reserved.</p>
       <p class="mt-2">
         Follow us on
         <a href="#" class="text-blue-300 hover:underline">Twitter</a>,

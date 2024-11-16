@@ -3,7 +3,6 @@ import type { Principal } from "@dfinity/principal";
 import type { HttpAgent, Identity } from "@dfinity/agent";
 import { StoicIdentity } from "ic-stoic-identity";
 import { AuthClient } from "@dfinity/auth-client";
-import UAParser from 'ua-parser-js';
 import {
   backend,
   createActor as createBackendCanisterActor,
@@ -14,64 +13,14 @@ import { BACKEND_CANISTER_ID, getHost } from "./helpers/utils";
 
 export const HOST = getHost();
 
-// User's device and browser information
-export const webGpuSupportedBrowsers = "Google Chrome, Microsoft Edge";
-const uaParser = new UAParser();
-const result = uaParser.getResult();
-export const device = result.device.model || 'Unknown Device';
-export let deviceType = result.device.type; // Will return 'mobile' for mobile devices, 'tablet' for tablets, and undefined for desktops
-let osName = result.os.name; // Get the operating system name
-
-if (!deviceType) {
-  deviceType = 'desktop';
-} else if (deviceType === 'mobile' || deviceType === 'tablet') {
-  if (osName === 'Android') {
-    //deviceType = 'Android ' + deviceType; // e.g., 'Android mobile'
-    deviceType = 'Android';
-  } else if (osName === 'iOS') {
-    //deviceType = 'iOS ' + deviceType; // e.g., 'iOS mobile'
-    deviceType = 'iOS';
-  };
-};
-export const browser = result.browser.name || 'Unknown Browser';
-// @ts-ignore
-export const supportsWebGpu = navigator.gpu !== undefined;
-
-export let chatModelGlobal = writable(null);
-export let chatModelDownloadedGlobal = writable(false);
-export let chatModelIdInitiatedGlobal = writable(null);
-export let activeChatGlobal = writable(null);
-export let userSettings = writable(localStorage.getItem("userSettings"));
-userSettings.subscribe((value) => localStorage.setItem("userSettings", value));
-export let selectedAiModelId = writable(localStorage.getItem("selectedAiModelId") || null);
-selectedAiModelId.subscribe((value) => {
-  if (value === null) {
-    localStorage.removeItem("selectedAiModelId");
-  } else {
-    localStorage.setItem("selectedAiModelId", value);
-  }
-});
-
-export const currentExperienceId = writable(null);
-export let saveChatsUserSelection = writable(localStorage.getItem("saveChatsUserSelection") === "false" ? false : true); // values: true for "save" or false for "doNotSave" with true as default
-saveChatsUserSelection.subscribe((value) => localStorage.setItem("saveChatsUserSelection", `${value}`));
-
-export let vectorStore = writable(null);
-
-export let installAppDeferredPrompt = writable(null);
-
 let authClient : AuthClient;
-const APPLICATION_NAME = "DeVinci";
-const APPLICATION_LOGO_URL = "https://vdfyi-uaaaa-aaaai-acptq-cai.ic0.app/favicon.ico"; //TODO: change
-
-const AUTH_PATH = "/authenticate/?applicationName="+APPLICATION_NAME+"&applicationLogo="+APPLICATION_LOGO_URL+"#authorize";
 
 const days = BigInt(30);
 const hours = BigInt(24);
 const nanosecondsPerHour = BigInt(3600000000000);
 
 export type State = {
-  isAuthed: "plug" | "stoic" | "nfid" | "bitfinity" | "internetidentity" | null;
+  isAuthed: "plug" | "stoic" | "nfid" | "internetidentity" | null;
   userId: string | null;
   backendActor: typeof backend;
   principal: Principal;
@@ -101,6 +50,7 @@ export const createStore = ({
 }) => {
   const { subscribe, update } = writable<State>(defaultState);
   let globalState: State;
+
   subscribe((value) => {
     globalState = value;
     localStorage.setItem("globalState", JSON.stringify({
@@ -122,41 +72,13 @@ export const createStore = ({
     }));
   }
 
-  const initUserSettings = async (backendActor) => {
-    // Load the user's settings
-      // Especially selected AI model to be used for chat
-    if (navigator.onLine) {
-      try {
-        const retrievedSettingsResponse = await backendActor.get_caller_settings();
-        // @ts-ignore
-        if (retrievedSettingsResponse.Ok) {
-          userSettings.set(retrievedSettingsResponse.Ok);
-          const userSelectedAiModelId = retrievedSettingsResponse.Ok.selectedAiModelId;
-          selectedAiModelId.set(userSelectedAiModelId);
-        } else {
-          console.error("Error retrieving user settings: ", retrievedSettingsResponse.Err);
-          throw new Error("Error retrieving user settings: ", retrievedSettingsResponse.Err);
-        };
-      } catch (error) {
-        console.error("Error in get_caller_settings: ", error);
-        if (localStorage.getItem("userSettings")) {
-          userSettings.set(localStorage.getItem("userSettings"));
-        };
-        if (localStorage.getItem("selectedAiModelId")) {
-          selectedAiModelId.set(localStorage.getItem("selectedAiModelId"));
-        };
-      };
-    } else {
-      if (localStorage.getItem("userSettings")) {
-        userSettings.set(localStorage.getItem("userSettings"));
-      };
-      if (localStorage.getItem("selectedAiModelId")) {
-        selectedAiModelId.set(localStorage.getItem("selectedAiModelId"));
-      };
-    };
-  };
+  const initUserSettings = async (backendActor) => {};
 
   const nfidConnect = async () => {
+    const APPLICATION_NAME = "Anti-Korrupt";
+    const APPLICATION_LOGO_URL = "https://vdfyi-uaaaa-aaaai-acptq-cai.ic0.app/favicon.ico"; //TODO: change
+    const AUTH_PATH = "/authenticate/?applicationName="+APPLICATION_NAME+"&applicationLogo="+APPLICATION_LOGO_URL+"#authorize";
+
     authClient = await AuthClient.create();
     if (await authClient.isAuthenticated()) {
       const identity = await authClient.getIdentity();
@@ -199,15 +121,12 @@ export const createStore = ({
 
     await initUserSettings(backendActor);
 
-    //let accounts = JSON.parse(await identity.accounts());
-
     localStorage.setItem('isAuthed', "nfid"); // Set flag to indicate existing login for future sessions
 
     update((state) => ({
       ...state,
       backendActor,
       principal: identity.getPrincipal(),
-      //accountId: accounts[0].address, // we take the default account associated with the identity
       accountId: null,
       isAuthed: "nfid",
     }));
@@ -392,89 +311,6 @@ export const createStore = ({
     console.log("plug is authed");
   };
 
-  const bitfinityConnect = async () => {
-    // check if Bitfinity is installed in the browser
-    if (window.ic?.infinityWallet === undefined) {
-      window.open("https://wallet.bitfinity.network/", "_blank");
-      return;
-    };
-
-    // check if bitfinity is connected
-    const bitfinityConnected = await window.ic?.infinityWallet?.isConnected();
-    if (!bitfinityConnected) {
-      try {
-        console.log({
-          whitelist,
-          host,
-        });
-        await window.ic?.infinityWallet.requestConnect({
-          whitelist,
-          //host,
-        });
-      } catch (e) {
-        console.warn(e);
-        return;
-      };
-    };
-
-    await initBitfinity();
-  };
-
-  const initBitfinity = async () => {
-    // check whether agent is present
-    // if not create it
-    /* if (!window.ic?.infinityWallet?.agent) {
-      console.warn("no agent found");
-      const result = await window.ic?.infinityWallet?.createAgent({
-        whitelist,
-        host,
-      });
-      result
-        ? console.log("agent created")
-        : console.warn("agent creation failed");
-    }; */
-    // check if createActor method is available
-    if (!window.ic?.infinityWallet?.createActor) {
-      console.warn("no createActor found");
-      return;
-    };
-
-    // Fetch root key for certificate validation during development
-    if (process.env.DFX_NETWORK === "local") {
-      /* window.ic.infinityWallet.agent.fetchRootKey().catch((err) => {
-        console.warn(
-          "Unable to fetch root key. Check to ensure that your local replica is running",
-        );
-        console.error(err);
-      }); */
-    }
-
-    const backendActor = (await window.ic?.infinityWallet.createActor({
-      canisterId: BACKEND_CANISTER_ID,
-      interfaceFactory: backendIdlFactory,
-      host,
-    })) as typeof backend;
-
-    if (!backendActor) {
-      console.warn("couldn't create backend actor");
-      return;
-    };
-
-    const principal = await window.ic.infinityWallet.getPrincipal();
-
-    localStorage.setItem('isAuthed', "bitfinity"); // Set flag to indicate existing login for future sessions
-
-    update((state) => ({
-      ...state,
-      backendActor,
-      principal,
-      //accountId: window.ic.infinityWallet.sessionManager.sessionData.accountId,
-      isAuthed: "bitfinity",
-    }));
-
-    console.log("bitfinity is authed");
-  };
-
   const disconnect = async () => {
     // Check isAuthed to determine which method to use to disconnect
     if (globalState.isAuthed === "plug") {
@@ -508,22 +344,9 @@ export const createStore = ({
       } catch (error) {
         console.error("Internet Identity disconnect error: ", error);
       };
-    } else if (globalState.isAuthed === "bitfinity") {
-      /* try {
-        await window.ic?.infinityWallet?.disconnect();
-        // wait for 500ms to ensure that the disconnection is complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const bitfinityConnected = await window.ic?.infinityWallet?.isConnected();
-        if (bitfinityConnected) {
-          console.log("Bitfinity disconnect failed, trying once more");
-          await window.ic?.infinityWallet?.disconnect();
-        };
-      } catch (error) {
-        console.error("Bitfinity disconnect error: ", error);
-      }; */
-    };
+    }
 
-    update((prevState) => {
+    update(() => {
       return {
         ...defaultState,
       };
@@ -545,9 +368,6 @@ export const createStore = ({
         } else if (isAuthed === "plug") {
           console.log("Plug connection detected");
           plugConnect();
-        } else if (isAuthed === "bitfinity") {
-          console.log("Bitfinity connection detected");
-          bitfinityConnect();
         } else if (isAuthed === "stoic") {
           console.log("Stoic connection detected");
           stoicConnect();
@@ -563,7 +383,6 @@ export const createStore = ({
     plugConnect,
     stoicConnect,
     nfidConnect,
-    bitfinityConnect,
     internetIdentityConnect,
     disconnect,
     checkExistingLoginAndConnect,
@@ -622,14 +441,7 @@ declare global {
         }) => Promise<{ height: number }>;
       };
       infinityWallet: {
-        /* agent: HttpAgent;
-        sessionManager: {
-          sessionData: {
-            accountId: string;
-          };
-        }; */
         getPrincipal: () => Promise<Principal>;
-        //deleteAgent: () => void;
         requestConnect: (options?: {
           whitelist?: string[];
           //host?: string;
@@ -640,33 +452,6 @@ declare global {
           host?: string;
         }) => Promise<typeof backend>;
         isConnected: () => Promise<boolean>;
-        /* disconnect: () => Promise<boolean>;
-        createAgent: (args?: {
-          whitelist: string[];
-          host?: string;
-        }) => Promise<undefined>;
-        requestBalance: () => Promise<
-          Array<{
-            amount: number;
-            canisterId: string | null;
-            image: string;
-            name: string;
-            symbol: string;
-            value: number | null;
-          }>
-        >;
-        requestTransfer: (arg: {
-          to: string;
-          amount: number;
-          opts?: {
-            fee?: number;
-            memo?: string;
-            from_subaccount?: number;
-            created_at_time?: {
-              timestamp_nanos: number;
-            };
-          };
-        }) => Promise<{ height: number }>; */
         getUserAssets: () => Promise<any>;
         batchTransactions: () => Promise<any>;
       };
