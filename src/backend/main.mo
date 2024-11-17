@@ -183,21 +183,21 @@ shared ({ caller }) actor class Backend() {
   };
 
   // set icrc1 token canister
-  public shared ({ caller }) func set_icrc1_token_canister(tokenCanisterId : Text) : async Result<(), ApiError> {
+  public shared ({ caller }) func set_icrc1_token_canister(tokenCanisterId : Principal) : async Result<(), ApiError> {
     if (not _isAllowed(caller)) return #err(#Unauthorized);
 
     let icrc1Canister = try {
-      #ok(await Utils.createIcrcActor(tokenCanisterId));
+      #ok(await Utils.createIcrcActor(Principal.toText(tokenCanisterId)));
     } catch e #err(e);
 
     switch (icrc1Canister) {
       case (#ok(icrc1Actor)) {
         icrc1Actor_ := icrc1Actor;
-        icrc1TokenCanisterId_ := tokenCanisterId;
+        icrc1TokenCanisterId_ := Principal.toText(tokenCanisterId);
         #ok;
       };
       case (#err(e)) {
-        #err(#Other("Failed to instantiate icrc1 token canister from given id(" # tokenCanisterId # ") for reason " # Error.message(e)));
+        #err(#Other("Failed to instantiate icrc1 token canister from given id(" # Principal.toText(tokenCanisterId) # ") for reason " # Error.message(e)));
       };
     };
   };
@@ -261,124 +261,6 @@ shared ({ caller }) actor class Backend() {
             return #err(#NotFound("Course not found"));
           };
         };
-      };
-      case (null) {
-        return #err(#NotFound("User not found"));
-      };
-    };
-  };
-
-  // Get course resources
-  public query func getCourseResources(courseId : Text) : async Result<[Resource], ApiError> {
-    let course = _getCourse(courseId);
-    switch (course) {
-      case (?c) {
-        return #ok(Vector.toArray(c.resources));
-      };
-      case (null) {
-        return #err(#NotFound("Course not found"));
-      };
-    };
-  };
-
-  // Get random course questions
-  public query func getRandomCourseQuestions(courseId : Text, questionCount : Nat) : async Result<[Question], ApiError> {
-    let course = _getCourse(courseId);
-    switch (course) {
-      case (?c) {
-        let questions = Vector.new<Question>();
-        let len = Vector.size(c.questions);
-
-        if (len == 0) {
-          return #err(#Other("Course has no questions"));
-        };
-        if (questionCount > len) {
-          return #err(#Other("Question count " # Nat.toText(questionCount) # " is greater than the number of questions " # Nat.toText(len)));
-        };
-
-        let choices = generateXUniqueRandomNumbers(questionCount, len);
-
-        for (number in choices.vals()) {
-          Debug.print("Random: " # debug_show (number));
-          let question = Vector.get(c.questions, number);
-          Vector.add(questions, question);
-        };
-
-        return #ok(Vector.toArray(questions));
-      };
-      case (null) {
-        return #err(#NotFound("Course not found"));
-      };
-    };
-  };
-
-  // Register a new user
-  public shared ({ caller }) func loginOrRegiser(fullname : Text) : async Result<Text, ApiError> {
-    let userId = Utils.hashText(fullname);
-    let user = Map.get(members, thash, userId);
-    var userP : ?Principal = null;
-
-    if (not Principal.isAnonymous(caller)) {
-      userP := ?caller;
-    };
-
-    switch (user) {
-      case (?u) {
-        return #ok(u.id);
-      };
-      case (null) {
-        let newUser = {
-          id = userId;
-          fullname = fullname;
-          principal = userP;
-          var claimableTokens = 0;
-          enrolledCourses = Vector.new<EnrolledCourse>();
-        };
-        Map.set(members, thash, userId, newUser);
-        return #ok(userId);
-      };
-    };
-  };
-
-  // Connect user to principal
-  public shared ({ caller }) func connectUserToPrincipal(userId : Text) : async Result<Text, ApiError> {
-    let user = Map.get(members, thash, userId);
-    if (Principal.isAnonymous(caller)) {
-      return #err(#Unauthorized);
-    };
-    switch (user) {
-      case (?u) {
-        if (u.principal != null) {
-          return #err(#Other("User already connected to principal"));
-        };
-        let newUser = {
-          id = u.id;
-          fullname = u.fullname;
-          principal = ?caller;
-          var claimableTokens = u.claimableTokens;
-          enrolledCourses = u.enrolledCourses;
-        };
-        Map.set(members, thash, userId, newUser);
-        #ok("User connected to principal successfully");
-      };
-      case (null) {
-        return #err(#NotFound("User not found"));
-      };
-    };
-  };
-
-  // Get user profile
-  public query func getProfile(userId : Text) : async Result<SharedUser, ApiError> {
-    let user = Map.get(members, thash, userId);
-    switch (user) {
-      case (?member) {
-        let sharedUser = {
-          id = member.id;
-          fullname = member.fullname;
-          principal = member.principal;
-          claimableTokens = member.claimableTokens;
-        };
-        return #ok(sharedUser);
       };
       case (null) {
         return #err(#NotFound("User not found"));
@@ -485,6 +367,80 @@ shared ({ caller }) actor class Backend() {
     };
   };
 
+  // Register a new user
+  public shared ({ caller }) func loginOrRegiser(fullname : Text) : async Result<Text, ApiError> {
+    let userId = Utils.hashText(fullname);
+    let user = Map.get(members, thash, userId);
+    var userP : ?Principal = null;
+
+    if (not Principal.isAnonymous(caller)) {
+      userP := ?caller;
+    };
+
+    switch (user) {
+      case (?u) {
+        return #ok(u.id);
+      };
+      case (null) {
+        let newUser = {
+          id = userId;
+          fullname = fullname;
+          principal = userP;
+          var claimableTokens = 0;
+          enrolledCourses = Vector.new<EnrolledCourse>();
+        };
+        Map.set(members, thash, userId, newUser);
+        return #ok(userId);
+      };
+    };
+  };
+
+  // Connect user to principal
+  public shared ({ caller }) func connectUserToPrincipal(userId : Text) : async Result<Text, ApiError> {
+    let user = Map.get(members, thash, userId);
+    if (Principal.isAnonymous(caller)) {
+      return #err(#Unauthorized);
+    };
+    switch (user) {
+      case (?u) {
+        if (u.principal != null) {
+          return #err(#Other("User already connected to principal"));
+        };
+        let newUser = {
+          id = u.id;
+          fullname = u.fullname;
+          principal = ?caller;
+          var claimableTokens = u.claimableTokens;
+          enrolledCourses = u.enrolledCourses;
+        };
+        Map.set(members, thash, userId, newUser);
+        #ok("User connected to principal successfully");
+      };
+      case (null) {
+        return #err(#NotFound("User not found"));
+      };
+    };
+  };
+
+  // Get user profile
+  public query func getProfile(userId : Text) : async Result<SharedUser, ApiError> {
+    let user = Map.get(members, thash, userId);
+    switch (user) {
+      case (?member) {
+        let sharedUser = {
+          id = member.id;
+          fullname = member.fullname;
+          principal = member.principal;
+          claimableTokens = member.claimableTokens;
+        };
+        return #ok(sharedUser);
+      };
+      case (null) {
+        return #err(#NotFound("User not found"));
+      };
+    };
+  };
+
   // Create a course
   public shared ({ caller }) func createCourse(title : Text, summary : Text) : async Result<Text, ApiError> {
     if (not _isAllowed(caller)) return #err(#Unauthorized);
@@ -526,6 +482,19 @@ shared ({ caller }) actor class Backend() {
         };
         Map.set(courses, thash, c.id, updatedCourse);
         return #ok("Resource created successfully");
+      };
+      case (null) {
+        return #err(#NotFound("Course not found"));
+      };
+    };
+  };
+
+  // Get course resources
+  public query func getCourseResources(courseId : Text) : async Result<[Resource], ApiError> {
+    let course = _getCourse(courseId);
+    switch (course) {
+      case (?c) {
+        return #ok(Vector.toArray(c.resources));
       };
       case (null) {
         return #err(#NotFound("Course not found"));
@@ -646,6 +615,48 @@ shared ({ caller }) actor class Backend() {
       };
     };
     #ok();
+  };
+
+  // Get course questions
+  public query func getCourseQuestions(courseId : Text) : async Result<[Question], ApiError> {
+    let course = _getCourse(courseId);
+    switch (course) {
+      case (null) { #err(#NotFound("Course not found")) };
+      case (?c) {
+        #ok(Vector.toArray(c.questions));
+      };
+    };
+  };
+
+  // Get random course questions
+  public query func getRandomCourseQuestions(courseId : Text, questionCount : Nat) : async Result<[Question], ApiError> {
+    let course = _getCourse(courseId);
+    switch (course) {
+      case (?c) {
+        let questions = Vector.new<Question>();
+        let len = Vector.size(c.questions);
+
+        if (len == 0) {
+          return #err(#Other("Course has no questions"));
+        };
+        if (questionCount > len) {
+          return #err(#Other("Question count " # Nat.toText(questionCount) # " is greater than the number of questions " # Nat.toText(len)));
+        };
+
+        let choices = generateXUniqueRandomNumbers(questionCount, len);
+
+        for (number in choices.vals()) {
+          Debug.print("Random: " # debug_show (number));
+          let question = Vector.get(c.questions, number);
+          Vector.add(questions, question);
+        };
+
+        return #ok(Vector.toArray(questions));
+      };
+      case (null) {
+        return #err(#NotFound("Course not found"));
+      };
+    };
   };
 
   // Submit questions attempt
@@ -1342,17 +1353,6 @@ shared ({ caller }) actor class Backend() {
     };
   };
 
-  // Get course questions
-  public query func getCourseQuestions(courseId : Text) : async Result<[Question], ApiError> {
-    let course = _getCourse(courseId);
-    switch (course) {
-      case (null) { #err(#NotFound("Course not found")) };
-      case (?c) {
-        #ok(Vector.toArray(c.questions));
-      };
-    };
-  };
-
   // Get run questions
   public shared ({ caller }) func getRunQuestions(runId : Text) : async Result<[Question], ApiError> {
     if (not _isAllowed(caller)) return #err(#Unauthorized);
@@ -1753,120 +1753,5 @@ shared ({ caller }) actor class Backend() {
       case (null) { return #err(#Unauthorized) };
       case (?memoryVectors) { return #ok(true) };
     };
-  };
-
-  // Email Signups from Website
-  stable var emailSubscribersStorageStable : [(Text, Types.EmailSubscriber)] = [];
-  var emailSubscribersStorage : HashMap.HashMap<Text, Types.EmailSubscriber> = HashMap.HashMap(0, Text.equal, Text.hash);
-
-  // Add a user as new email subscriber
-  private func putEmailSubscriber(emailSubscriber : Types.EmailSubscriber) : Text {
-    emailSubscribersStorage.put(emailSubscriber.emailAddress, emailSubscriber);
-    return emailSubscriber.emailAddress;
-  };
-
-  // Retrieve an email subscriber by email address
-  private func getEmailSubscriber(emailAddress : Text) : ?Types.EmailSubscriber {
-    let result = emailSubscribersStorage.get(emailAddress);
-    return result;
-  };
-
-  // User can submit a form to sign up for email updates
-  // For now, we only capture the email address provided by the user and on which page they submitted the form
-  public func submit_signup_form(submittedSignUpForm : Types.SignUpFormInput) : async Text {
-    switch (getEmailSubscriber(submittedSignUpForm.emailAddress)) {
-      case null {
-        // New subscriber
-        let emailSubscriber : Types.EmailSubscriber = {
-          emailAddress : Text = submittedSignUpForm.emailAddress;
-          pageSubmittedFrom : Text = submittedSignUpForm.pageSubmittedFrom;
-          subscribedAt : Nat64 = Nat64.fromNat(Int.abs(Time.now()));
-        };
-        let result = putEmailSubscriber(emailSubscriber);
-        if (result != emailSubscriber.emailAddress) {
-          return "There was an error signing up. Please try again.";
-        };
-        return "Successfully signed up!";
-      };
-      case _ { return "Already signed up!" };
-    };
-  };
-
-  // Function for custodian to get all email subscribers
-  public shared query ({ caller }) func get_email_subscribers() : async [(Text, Types.EmailSubscriber)] {
-    // Only Principals registered in acl can access this function
-    if (not _isAllowed(caller)) return [];
-    return Iter.toArray(emailSubscribersStorage.entries());
-  };
-
-  // Function for custodian to delete an email subscriber
-  public shared ({ caller }) func delete_email_subscriber(emailAddress : Text) : async Bool {
-    // Only Principals registered in acl can access this function
-    if (not _isAllowed(caller)) return false;
-    emailSubscribersStorage.delete(emailAddress);
-    return true;
-  };
-
-  // AI-for-education experiences (Knowledge Foundation hackathon)
-  var aiForEducationExperiencesStable : [Types.EducationExperience] = [
-    // Knowledge foundation entry
-    {
-      id = "knowledge-foundation";
-      title = "Knowledge Foundation Hackathon Entry";
-      creator = "Ayomide & Kezzy & Zeegaths";
-      shortDescription = "This was the entry we put in at the Knowledge Foundation hackathon";
-      longDescription = "It was the first AI for education experience we created and it's the inspiration for more solutions to come (including this hackathon). It's based on the a different approach than DeVinci is taking: run the AI model offchain making the experience faster on the user's device. It includes the UN anti-corruption resources as in-browser vector databases. As an extra, we added a assessment generation feature to create questions for the courses allowing the canister to mark user submitted assessments.";
-      note = "Give it a try and think about how to improve it :)";
-      isStandaloneApp = true;
-      standaloneAppUrl = ?"https://px7id-byaaa-aaaak-albiq-cai.icp0.io/";
-      experienceType = null;
-      aiModelIdentifier = null;
-      databaseToInclude = #None;
-      databaseIdentifier = null;
-    },
-    // Oxford entry
-    {
-      id = "oxford";
-      title = "Oxford Hackathon Entry";
-      creator = "Arjaan & Patrick";
-      shortDescription = "This was the entry we put in at the Oxford hackathon";
-      longDescription = "It was the first AI for education experience we created and it's the inspiration for more solutions to come (including this hackathon). It's based on the same approach DeVinci is taking: run the AI model on the user's device. It includes the UN anti-corruption resources as in-browser vector databases. As an extra, we built a first pipeline to easily create an on-chain LLM (on the Internet Computer).";
-      note = "Give it a try and think about how to improve it :)";
-      isStandaloneApp = true;
-      standaloneAppUrl = ?"https://6tht4-syaaa-aaaai-acriq-cai.icp0.io/#/learn";
-      experienceType = null;
-      aiModelIdentifier = null;
-      databaseToInclude = #None;
-      databaseIdentifier = null;
-    },
-    // DeVinci
-    {
-      id = "devinci";
-      title = "DeVinci AI Chat App";
-      creator = "Nuno & Patrick";
-      shortDescription = "This is the first end-to-end-decentralized AI chat app and the core of the codebase for this hackathon";
-      longDescription = "DeVinci is the fully private, end-to-end-decentralized AI chat app served from the Internet Computer. AI models run directly on the user's device so no data needs to leave the device and you can even use it offline.";
-      note = "Choose your favorite open-source Large Language Model and chat with it.";
-      isStandaloneApp = true;
-      standaloneAppUrl = ?"https://x6occ-biaaa-aaaai-acqzq-cai.icp0.io/";
-      experienceType = null;
-      aiModelIdentifier = null;
-      databaseToInclude = #None;
-      databaseIdentifier = null;
-    },
-  ];
-
-  public shared query ({ caller }) func get_education_experiences() : async [Types.EducationExperience] {
-    return aiForEducationExperiencesStable;
-  };
-
-  // Upgrade Hooks
-  system func preupgrade() {
-    emailSubscribersStorageStable := Iter.toArray(emailSubscribersStorage.entries());
-  };
-
-  system func postupgrade() {
-    emailSubscribersStorage := HashMap.fromIter(Iter.fromArray(emailSubscribersStorageStable), emailSubscribersStorageStable.size(), Text.equal, Text.hash);
-    emailSubscribersStorageStable := [];
   };
 };
