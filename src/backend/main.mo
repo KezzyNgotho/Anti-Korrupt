@@ -1704,7 +1704,7 @@ shared ({ caller }) actor class Backend() {
   };
 
   // Timers
-  ignore recurringTimer<system>(#seconds 1, pollRuns);
+  ignore recurringTimer<system>(#seconds 5, pollRuns);
 
   // Course Vector Database
   stable var courseMemoryVectorsStorage = Map.new<Text, [MemoryVector]>();

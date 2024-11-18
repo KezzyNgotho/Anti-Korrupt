@@ -17,8 +17,7 @@
         "entrypoint": "dist/index.html"
       },
       "source": [
-        "dist/",
-        "src/assets"
+        "dist/"
       ],
       "type": "assets"
     },

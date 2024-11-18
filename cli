@@ -103,7 +103,7 @@ addAcls() {
         echo "<a> is the principal to add to the ACLs."
         return 1
     fi
-    dfx canister call backend addAcls "(principal \"$1\")"
+    dfx canister call backend addAcls "(principal \"$1\")" --ic
 }
 
 addQuestion() {
