@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ZenVoich/setup-mops@v1
-
+      - name: Install dfx
+        uses: dfinity/setup-dfx@main
+      - name: Confirm successful installation
+        run: dfx --version
       - name: run tests
         run: mops test
