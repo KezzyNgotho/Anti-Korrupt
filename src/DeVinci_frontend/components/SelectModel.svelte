@@ -4,6 +4,8 @@
   import hero from "../../../public/image9.png";
   import { createBackend, errorToText } from "../helpers/utils";
   import iclogo from "../assets/internet-computer.svg";
+  import badge from "../assets/badge.png";
+  import logo2 from "../assets/AN.png";
   import { store } from "../store";
   import spinner from "../assets/loading.gif";
   import { Principal } from "@dfinity/principal";
@@ -795,8 +797,8 @@
   <div class="flex items-center space-x-4">
     <a href="/" class="flex items-center space-x-2">
       <img
-        src={logo}
-        alt="LLM Logo"
+        src={logo2}
+        alt="Anti-Korrupt"
         class="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-4 border-blue-200 transition-transform transform hover:scale-110 duration-300"
       />
       <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">Anti-Korrupt</h1>
@@ -805,7 +807,7 @@
 
   <!-- Center Links (Desktop) -->
   <nav class="hidden md:flex flex-grow justify-center space-x-6 mt-4 md:mt-0">
-    {#each ["Home", "Courses", "Quizzes", "Rewards", "Contact", "admin"] as link}
+    {#each ["Home", "Courses", "Quizzes", "Rewards", "Contact", "Admin"] as link}
       <!-- svelte-ignore a11y-invalid-attribute -->
       <a
         href="#"
@@ -874,11 +876,6 @@
         </p>
         <!-- Styled Buttons -->
         <div class="flex justify-center md:justify-start space-x-4">
-          <button
-            class="bg-[#E1AD01] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
-          >
-            Sign Up
-          </button>
           <button
             on:click={() => handleNavClick("courses")}
             class="bg-[#00C4CC] text-white px-11 py-2 text-lg font-semibold shadow-lg hover:bg-white hover:text-[#0077b6] transition-all duration-300 ease-in-out transform hover:scale-105"
@@ -1407,9 +1404,9 @@
 
   <!-- Admin section -->
   <section
-    id="admin"
+    id="Admin"
     class="py-16 bg-[#0f535c] text-white"
-    class:hidden={activeSection !== "admin"}
+    class:hidden={activeSection !== "Admin"}
   >
     <div class="container mx-auto space-y-8">
       {#if storeState.principal}
@@ -1720,16 +1717,19 @@
 
   <!-- Footer -->
   <footer
-    class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-6 text-center"
+    class="bg-gradient-to-r from-[#0f535c] to-[#38a0ac] text-white py-6 px-4"
   >
-    <div class="container mx-auto">
-      <p>&copy; 2024 Anti-Korrupt. All rights reserved.</p>
-      <p class="mt-2">
-        Follow us on
-        <a href="#" class="text-blue-300 hover:underline">Twitter</a>,
-        <a href="#" class="text-blue-300 hover:underline">Facebook</a>,
-        <a href="#" class="text-blue-300 hover:underline">Instagram</a>.
-      </p>
+    <div class="container mx-auto flex">
+      <div class="me-auto">
+        <img src={badge} alt="100% on ICP" style="width: 250px;" />
+      </div>
+      <div>
+        <p>&copy; 2024 Anti-Korrupt. All rights reserved.</p>
+        <p class="mt-2">
+          Follow us on
+          <a href="https://x.com/netrobeweb/" target="_blank" class="text-blue-300 hover:underline">Twitter</a>
+        </p>
+      </div>
     </div>
   </footer>
 </main>
