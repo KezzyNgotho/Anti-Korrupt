@@ -21,4 +21,4 @@ jobs:
       - name: Install dependencies
         run: mops install
       - name: run tests
-        run: mops test
+        run: mops test -r verbose
