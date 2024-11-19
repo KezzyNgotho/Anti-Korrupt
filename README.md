@@ -1,24 +1,18 @@
 # Anti-Korrupt
 
-Anti-Korrupt is live on the Internet Computer. If you like, you can give it a try [here](https://px7id-byaaa-aaaak-albiq-cai.icp0.io/).
+Anti-Korrupt is live on the Internet Computer.
+
+If you like, you can give it a try [here](https://px7id-byaaa-aaaak-albiq-cai.icp0.io/).
 
 [Backend Canister](https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=pq6ox-maaaa-aaaak-albia-cai)
 
-## Design
-
 Checkout the [design](https://miro.com/app/board/uXjVLfeaOGQ=/?share_link_id=752667331634) for the project on Miro.
 
-### Goals
+## About
 
+Anti-Korrupt is an AI-driven educational platform designed to increase global awareness about corruption. The platform offers interactive courses powered by blockchain technology, helping users understand corruption’s impact through AI-assisted learning modules and quizzes. Target users include students, educators, anti-corruption advocates, government employees, and the general public interested in governance and transparency.
 
-**Notes**:
-
-
-## About Anti-Korrupt
-
-Anti-Korrupt is a personalized AI assistant that redefines the paradigm of digital privacy and learning. It's decentralized, trusted, open-source, and truly user-focused. Powered by an OpenAI model that runs through HTTPS outcalls directly on the Internet Computer.
-
-### Key Features
+## Key Features
 
 - **Decentralized**: Operates directly within internet computer. Users can choose if they want to log in with a name or their internet identity. Their chats are stored on the decentralized cloud and under their control.
 - **Fast**: Built on Internet Computer communicating with OpenAI using HTTPS Outcalls. Faster than Web LLMs and support any kinds of devices.
@@ -26,6 +20,20 @@ Anti-Korrupt is a personalized AI assistant that redefines the paradigm of digit
 - **Private**: Users engagement with each course assistant is private to the user. No chat will mix up with another. This is because a new thread is created for each user enrolling for each course, separating thread messages.
 - **Prompt Tutor**: Users are taught and don't just need to prompt the course assistant every time.
 - **Incentivised Learning**: Users earn ACT tokens when they complete courses by taking course quizzes.
+
+## 🚧 Milestones and Progress
+
+- [x] User Authentication System
+- [x] Course Management System
+- [x] Role Based Access for staff
+- [x] User Course Enrollment and Progress Tracking
+- [x] Course Chat Assistant
+- [x] Assessment Engine & Token Rewards
+- [x] Unit and E2E Tests for Core Features
+
+## 🚧 Future plans
+
+- [ ] Migrate AI model 100% to the IC
 
 ### How Anti-Korrupt Works
 
@@ -45,7 +53,7 @@ The backend canister enables users to persist their chats, if they choose to (An
 
 ## Internet Computer Resources
 
-DeVinci is built and hosted on the Internet Computer. To learn more about it, see the following documentation available online:
+Anti-Korrupt is built and hosted on the Internet Computer. To learn more about it, see the following documentation available online:
 
 - [Quick Start](https://sdk.dfinity.org/docs/quickstart/quickstart-intro.html)
 - [SDK Developer Tools](https://sdk.dfinity.org/docs/developers-guide/sdk-guide.html)
