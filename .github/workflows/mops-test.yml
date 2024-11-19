@@ -18,5 +18,7 @@ jobs:
         uses: dfinity/setup-dfx@main
       - name: Confirm successful installation
         run: dfx --version
+      - name: Install dependencies
+        run: mops install
       - name: run tests
         run: mops test
