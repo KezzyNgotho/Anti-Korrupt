@@ -118,12 +118,11 @@
     if (userId) {
       const response = await backend.getProfile(userId);
       if (response["err"]) {
-        alert(`Error fetching user profile: ${errorToText(response["err"])}`);
+        localStorage.clear();
+        store.clearState();
         return;
       }
       user = response["ok"];
-    } else {
-      console.log("Please connect your wallet to view your profile.");
     }
   }
 
@@ -611,7 +610,10 @@
   /**
    * @param {string} courseId
    */
+  let loadingStartLearning = "";
+  let loadingChats = false;
   async function startLearning(courseId) {
+    loadingStartLearning = courseId;
     const backend = await createBackend();
     if (!storeState.userId) {
       await setUserId();
@@ -619,6 +621,7 @@
 
     // Enroll user in course
     const result = await backend.enrollCourse(courseId, storeState.userId);
+    loadingStartLearning = "";
     if ("err" in result) {
       alert(`Error enrolling in course: ${errorToText(result.err)}`);
       return;
@@ -632,7 +635,9 @@
     }
 
     // Get course messages
+    loadingChats = true;
     enrolledCourse = await fetchCourseMessages(courseId, storeState.userId);
+    loadingChats = false;
     if (!enrolledCourse) {
       alert("Error fetching course messages.");
       return;
@@ -967,7 +972,11 @@
                     on:click={() => startLearning(id)}
                     class="bg-[#023e8a] text-white px-4 py-2 rounded-full shadow-md hover:bg-[#0077b6] transition-all duration-300 transform hover:scale-105"
                   >
-                    {userProgress[id] === 100 ? "Completed" : "Start Learning"}
+                    {userProgress[id] === 100
+                      ? "Completed"
+                      : loadingStartLearning === id
+                        ? "Loading..."
+                        : "Start Learning"}
                   </button>
                 </div>
               </div>
@@ -1079,7 +1088,11 @@
             disabled={isSending}
             class="ml-4 bg-[#E1AD01] text-white py-2 px-4 rounded-lg hover:bg-[#D1A300] transition-colors duration-300"
           >
-            {isSending ? `${sendState}...` : "Send"}
+            {loadingChats
+              ? "Loading chats"
+              : isSending
+                ? `${sendState}...`
+                : "Send"}
           </button>
         </div>
       </div>

@@ -346,12 +346,17 @@ export const createStore = ({
       };
     }
 
+    clearState();
+  };
+
+  const clearState = () => {
     update(() => {
       return {
         ...defaultState,
+        userId: undefined,
       };
-    });
-  };
+    }
+  )}
 
   const checkExistingLoginAndConnect = async () => {
     // Check login state if user is already logged in
@@ -386,6 +391,7 @@ export const createStore = ({
     internetIdentityConnect,
     disconnect,
     checkExistingLoginAndConnect,
+    clearState,
   };
 };
 
