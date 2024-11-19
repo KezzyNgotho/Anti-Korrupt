@@ -37,7 +37,13 @@ Anti-Korrupt is an AI-driven educational platform designed to increase global aw
 
 ### How Anti-Korrupt Works
 
-Anti-Korrupt comprises a frontend canister and a backend canister which integrates the OpenAI Assistant with chat history storage. Here's a glimpse of how Anti-Korrupt is structured:
+Anti-Korrupt comprises a frontend canister and a backend canister which integrates the OpenAI Assistant with chat history storage.
+
+![Enroll in course and chat with course assistant](docs/first.png?raw=true)
+![Complete quiz and claim tokens](docs/second.png?raw=true)
+![Create course and generate questions](docs/third.png?raw=true)
+
+Here's a glimpse of how Anti-Korrupt is structured:
 
 #### Frontend Canister
 
