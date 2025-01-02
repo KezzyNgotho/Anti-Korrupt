@@ -260,16 +260,16 @@ function test_random_course_questions() {
 };
 
 // Run tests
-// test_generate_random_number();
-// test_owner();
-// test_acls();
-// test_token_canister();
-// test_api_key();
-// test_assistant_id();
-// test_login_or_register();
-// test_connect_user_principal();
-// test_get_profile();
+test_generate_random_number();
+test_owner();
+test_acls();
+test_token_canister();
+test_api_key();
+test_assistant_id();
+test_login_or_register();
+test_connect_user_principal();
+test_get_profile();
 test_courses();
-// test_course_resources();
-// test_course_questions();
-// test_random_course_questions();
+test_course_resources();
+test_course_questions();
+test_random_course_questions();
