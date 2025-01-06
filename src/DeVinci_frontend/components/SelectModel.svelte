@@ -383,6 +383,24 @@
   let reward2 = "Exclusive NFT Badge";
   let reward3 = "One-on-One Mentor Session";
 
+  let knowledgeFoundNFTs = [
+    {
+      course: "Course 1",
+      mark: 80,
+      date: new Date(),
+    },
+    {
+      course: "Course 2",
+      mark: 100,
+      date: new Date(),
+    },
+  ];
+
+  // Claim nfts
+  function claimNFTs() {
+
+  }
+
   // Chat History Data
   let chatHistory = [
     { date: "2024-09-01", topic: "Customer Support" },
@@ -1217,6 +1235,26 @@
           <i class="fas fa-coins mr-2"></i> Your Tokens
         </button>
         <button
+          on:click={() => handleTabChange("nfts")}
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === "nfts"
+              ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
+              : "text-[#0077b6] hover:text-[#023e8a]"
+          }`}
+        >
+          <i class="fas fa-coins mr-2"></i> Your NFTs
+        </button>
+        <button
+          on:click={() => handleTabChange("claim-nfts")}
+          class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
+            activeTab === "claim-nfts"
+              ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
+              : "text-[#0077b6] hover:text-[#023e8a]"
+          }`}
+        >
+          <i class="fas fa-coins mr-2"></i> Claim NFTs
+        </button>
+        <button
           on:click={() => handleTabChange("recent")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "recent"
@@ -1234,7 +1272,7 @@
               : "text-[#0077b6] hover:text-[#023e8a]"
           }`}
         >
-          <i class="fas fa-gift mr-2"></i> Claim Rewards
+          <i class="fas fa-gift mr-2"></i> Claim Tokens
         </button>
       </div>
 
@@ -1299,6 +1337,36 @@
           </section>
         {/if}
 
+        {#if activeTab === "nfts"}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">
+              Your Knowledge Found NFTs
+            </h3>
+            <p class="text-gray-700 mb-6">
+              You currently have <span class="font-bold text-[#f59e0b]"
+                >{knowledgeFoundNFTs.length}</span
+              > Knowledge Found NFTs.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {#each knowledgeFoundNFTs as nft}
+              <div
+                class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+              >
+                <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
+                  {nft.course}
+                </h4>
+                <p class="text-gray-600">
+                  Minted: {nft.date.toLocaleString()}
+                </p>
+                <p class="text-gray-600">
+                  Mark: {nft.mark}
+                </p>
+              </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
+
         {#if activeTab === "recent"}
           <section class="bg-white p-8 rounded-lg shadow-xl">
             <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">
@@ -1309,6 +1377,66 @@
               <li>{recentToken2}</li>
               <li>{recentToken3}</li>
             </ul>
+          </section>
+        {/if}
+
+        {#if activeTab === "claim-nfts"}
+          <section class="bg-white p-8 rounded-lg shadow-xl">
+            <h3 class="text-3xl font-extrabold text-[#023e8a] mb-4">
+              Claim NFTs
+            </h3>
+            <p class="text-gray-700 mb-6">
+              Here you can claim your Knowledge Found NFTs for various courses. Connect your identity and enjoy your rewards
+            </p>
+
+            <!-- Redemption Form -->
+            <div class="space-y-6">
+              <p class="block mb-2 text-gray-700">Claimable NFTs:</p>
+              <p>{Number(knowledgeFoundNFTs.length)}</p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {#each knowledgeFoundNFTs as nft}
+                <div
+                  class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                >
+                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
+                    {nft.course}
+                  </h4>
+                  <p class="text-gray-600">
+                    Minted: False
+                  </p>
+                  <p class="text-gray-600">
+                    Earned: {nft.date.toLocaleString()}
+                  </p>
+                  <p class="text-gray-600">
+                    Mark: {nft.mark}
+                  </p>
+                </div>
+                {/each}
+              </div>
+
+              {#if !storeState?.isAuthed}
+                <div class="mb-8">
+                  <p class="text-gray-700 mb-4">
+                    Connect your identity to claim your NFT rewards:
+                  </p>
+                  <button
+                    on:click={connectWallet}
+                    class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
+                  >
+                    Connect Identity
+                  </button>
+                </div>
+              {:else}
+                <button
+                  on:click={claimNFTs}
+                  type="submit"
+                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
+                >
+                  Claim All
+                </button>
+              {/if}
+            </div>
           </section>
         {/if}
 
@@ -1727,7 +1855,11 @@
         <p>&copy; 2024 Anti-Korrupt. All rights reserved.</p>
         <p class="mt-2">
           Follow us on
-          <a href="https://x.com/netrobeweb/" target="_blank" class="text-blue-300 hover:underline">Twitter</a>
+          <a
+            href="https://x.com/netrobeweb/"
+            target="_blank"
+            class="text-blue-300 hover:underline">Twitter</a
+          >
         </p>
       </div>
     </div>
