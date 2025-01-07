@@ -777,7 +777,7 @@ shared ({ caller }) actor class Backend() = this {
                   };
                 };
 
-                if (((Float.fromInt(correctCount) * 100.0) / Float.fromInt(Array.size(answers))) >= 80.0) {
+                if (((Float.fromInt(correctCount) * 100.0) / Float.fromInt(Array.size(answers))) < 80.0) {
                   return #err(#Other("You must get at least 80% to complete the course, please try again"));
                 };
 
@@ -789,10 +789,10 @@ shared ({ caller }) actor class Backend() = this {
                   };
                 };
 
-                let previousValue = Vector.get(member.enrolledCourses, enrolledCourseIndex);
-                if (previousValue.completed) {
-                  return #err(#Other("You have already completed this course before"));
-                };
+                // let previousValue = Vector.get(member.enrolledCourses, enrolledCourseIndex);
+                // if (previousValue.completed) {
+                //   return #err(#Other("You have already completed this course before"));
+                // };
 
                 let metadata : NFTMetadata = {
                   courseId = c.id;
