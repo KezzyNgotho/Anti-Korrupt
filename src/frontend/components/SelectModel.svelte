@@ -27,7 +27,7 @@
     M_DECIMALS,
     M_SYMBOL,
   } from "../helpers/ledger";
-  import { addPdfToCourseKnowledgebase } from "../helpers/vector_database";
+  import { addPdfToCourseKnowledgebase, searchCourseKnowledgebase } from "../helpers/vector_database";
 
   // State Variables
 
@@ -694,12 +694,12 @@ if (fileInput.files.length > 0) {
    * @param {string} message
    * @param {string} userId
    */
-  async function sendThreadMessage(threadId, message, userId) {
+  async function sendThreadMessage(threadId, message, context, userId) {
     const backend = await createBackend();
     try {
       sendState = "Sending";
       isSending = true;
-      const response = await backend.sendMessage(threadId, message, "", userId);
+      const response = await backend.sendMessage(threadId, message, context, userId);
       console.log("sendThreadMessage", response);
       if (response["ok"].Completed) {
         sendState = "Thinking";
@@ -750,9 +750,15 @@ if (fileInput.files.length > 0) {
         ...messages,
         { content: messageText, runId: [""], role: { User: null } },
       ];
+
+      console.log("Searching course knowledge base")
+      let context = await searchCourseKnowledgebase(enrolledCourse.id, messageText)
+      console.log("Extra context:", context)
+
       await sendThreadMessage(
         enrolledCourse.threadId,
         messageText,
+        context,
         storeState.userId,
       );
       messageText = "";

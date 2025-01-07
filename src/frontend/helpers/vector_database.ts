@@ -30,19 +30,23 @@ export const searchCourseKnowledgebase = async (courseId: string, searchText: st
   }
 
   const embeddingResult = await embeddingsModel.embedQuery(searchText);
+  console.log("Embedding result", embeddingResult);
+  console.log("Embedding result", embeddingResult.join(";"));
   try {
     const courseKnowledgebaseCanister =
       await store.getActorForCourseKnowledgebaseCanister(courseId);
+    console.log("Course Knowledgebase Canister", courseKnowledgebaseCanister);
     let searchResponse = await courseKnowledgebaseCanister.search(
-      { Embeddings: embeddingResult },
+      { 'Embeddings': embeddingResult },
       BigInt(1),
     );
+    console.log("searchResponse", searchResponse);
     if (searchResponse.length > 0) {
       if (searchResponse[0] && searchResponse[0].length > 0) {
         return searchResponse[0][0].content;
       }
     }
-    return false;
+    return "";
   } catch (error) {
     console.error("Error in searchUserKnowledgebase: ", error);
   }
