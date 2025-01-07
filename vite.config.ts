@@ -76,7 +76,7 @@ export default defineConfig({
       ...aliases,
     },
   },
-  publicDir: "./src/DeVinci_frontend/assets",
+  publicDir: "./src/frontend/assets",
   server: {
     host: true,
     fs: {

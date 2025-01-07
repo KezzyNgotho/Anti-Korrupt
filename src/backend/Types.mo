@@ -7,6 +7,7 @@ import Time "mo:base/Time";
 import Vector "mo:vector";
 import JSON "mo:json.mo";
 import Result "mo:base/Result";
+import ICRC7Type "mo:icrc7-mo";
 
 module {
   public type Vector<T> = Vector.Vector<T>;
@@ -29,14 +30,14 @@ module {
 
   public type EnrolledCourse = {
     id : Text;
-    threadId: Text;
+    threadId : Text;
     completed : Bool;
     messages : Vector<Message>;
   };
 
   public type SharedEnrolledCourse = {
     id : Text;
-    threadId: Text;
+    threadId : Text;
     completed : Bool;
     messages : [Message];
   };
@@ -80,7 +81,7 @@ module {
     processing : Bool;
   };
 
-  public type MessgeType = {
+  public type MessageType = {
     #User;
     #System;
   };
@@ -88,7 +89,7 @@ module {
   public type Message = {
     runId : ?Text;
     content : Text;
-    role : MessgeType;
+    role : MessageType;
   };
 
   public type SendMessageStatus = {
@@ -107,6 +108,7 @@ module {
     summary : Text;
     resources : Vector<Resource>;
     questions : Vector<Question>;
+    knowledgebase : CanisterInfo;
   };
 
   public type SharedCourse = {
@@ -211,7 +213,7 @@ module {
     #Unauthorized;
     #InvalidTokenId;
     #ZeroAddress;
-    #NotFound: Text;
+    #NotFound : Text;
     #Other : Text;
   };
 
@@ -275,5 +277,70 @@ module {
     #None;
     #External;
     #Local;
+  };
+
+  public type Embeddings = [Float];
+
+  public type CanisterType = {
+    #Knowledgebase;
+  };
+
+  public type CanisterInfo = {
+    canisterType : CanisterType;
+    creationTimestamp : Nat64;
+    canisterAddress : Text;
+  };
+  public type AuthRecord = {
+    auth : Text;
+  };
+
+  public type AuthRecordResult = Result<AuthRecord, ApiError>;
+
+  public type CanisterCreationConfigurationInput = {
+    canisterType : CanisterType;
+  };
+
+  public type CanisterCreationConfiguration = {
+    canisterType : CanisterType;
+  };
+
+  public type CanisterCreationRecord = {
+    creationResult : Text;
+    newCanisterId : Text;
+  };
+
+  public type CanisterCreationResult = Result<CanisterCreationRecord, ApiError>;
+  public type CourseCanisterCreationResult = Result<CanisterInfo, ApiError>;
+
+  public type CertificateType = {
+    #Degree : {
+      major : Text;
+      years : Nat;
+      gpa : Float;
+    };
+    #Workshop : {
+      duration : Text;
+      skills : Text;
+    };
+    #Certification : {
+      skills : Text;
+    };
+    #Seminar : {
+      duration : Text;
+    };
+  };
+
+  public type NFTMetadata = {
+    courseId : Text;
+    courseTitle : Text;
+    userId : Text;
+    user : Principal;
+    userName : Text;
+    mark : Nat;
+    issued_on : Time.Time;
+  };
+
+  public type KnowledgeFoundNFT = actor {
+    icrcX_mint : shared query (ICRC7Type.SetNFTRequest) -> async [ICRC7Type.SetNFTResult];
   };
 };

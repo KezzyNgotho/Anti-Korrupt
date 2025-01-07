@@ -14,11 +14,6 @@ type SubmittedAnswer =
    option: nat;
    questionId: text;
  };
-type SignUpFormInput = 
- record {
-   emailAddress: text;
-   pageSubmittedFrom: text;
- };
 type SharedUser = 
  record {
    claimableTokens: nat;
@@ -74,52 +69,47 @@ type RunStatus =
 type Result_9 = 
  variant {
    err: ApiError;
-   ok: SharedUser;
+   ok: CanisterInfo;
  };
 type Result_8 = 
  variant {
    err: ApiError;
-   ok: Message__1;
+   ok: vec Resource;
  };
 type Result_7 = 
  variant {
    err: ApiError;
-   ok: vec Question;
+   ok: SharedUser;
  };
 type Result_6 = 
  variant {
    err: ApiError;
-   ok: RunStatus__1;
+   ok: Message__1;
  };
 type Result_5 = 
  variant {
    err: ApiError;
-   ok: SharedEnrolledCourse;
+   ok: vec Question;
  };
 type Result_4 = 
  variant {
    err: ApiError;
-   ok: vec MemoryVector;
+   ok: RunStatus__1;
  };
 type Result_3 = 
+ variant {
+   err: ApiError;
+   ok: SharedEnrolledCourse;
+ };
+type Result_2 = 
  variant {
    err: SendMessageStatus;
    ok: SendMessageStatus;
  };
-type Result_2 = 
- variant {
-   err: ApiError;
-   ok;
- };
-type Result_10 = 
- variant {
-   err: ApiError;
-   ok: vec Resource;
- };
 type Result_1 = 
  variant {
    err: ApiError;
-   ok: bool;
+   ok;
  };
 type Result = 
  variant {
@@ -159,29 +149,22 @@ type Question =
    id: text;
    options: vec QuestionOption;
  };
-type MessgeType = 
+type Message__1 = 
+ record {
+   content: text;
+   role: MessageType;
+   runId: opt text;
+ };
+type MessageType = 
  variant {
    System;
    User;
  };
-type Message__1 = 
- record {
-   content: text;
-   role: MessgeType;
-   runId: opt text;
- };
 type Message = 
  record {
    content: text;
-   role: MessgeType;
+   role: MessageType;
    runId: opt text;
- };
-type MemoryVectorMetadata = record {id: int;};
-type MemoryVector = 
- record {
-   content: text;
-   embedding: vec float64;
-   metadata: MemoryVectorMetadata;
  };
 type HttpResponsePayload = 
  record {
@@ -194,38 +177,12 @@ type HttpHeader =
    name: text;
    value: text;
  };
-type ExperienceType = 
- variant {
-   Offchain;
-   Onchain;
-   Ondevice;
- };
-type EmailSubscriber = 
+type CanisterType = variant {Knowledgebase;};
+type CanisterInfo = 
  record {
-   emailAddress: text;
-   pageSubmittedFrom: text;
-   subscribedAt: nat64;
- };
-type EducationExperience = 
- record {
-   aiModelIdentifier: opt text;
-   creator: text;
-   databaseIdentifier: opt text;
-   databaseToInclude: DatabaseToInclude;
-   experienceType: opt ExperienceType;
-   id: text;
-   isStandaloneApp: bool;
-   longDescription: text;
-   note: text;
-   shortDescription: text;
-   standaloneAppUrl: opt text;
-   title: text;
- };
-type DatabaseToInclude = 
- variant {
-   External;
-   Local;
-   None;
+   canisterAddress: text;
+   canisterType: CanisterType;
+   creationTimestamp: nat64;
  };
 type CanisterHttpResponsePayload = 
  record {
@@ -238,49 +195,55 @@ type Backend =
    addAcls: (principal) -> () oneway;
    addAclsText: (text) -> () oneway;
    addQuestion: (text, Question) -> (Result);
-   changeApiKey: (text) -> (Result_2);
-   changeOwner: (text) -> (Result_2);
-   check_course_has_memory_vectors_entry: (text) -> (Result_1) query;
+   changeApiKey: (text) -> (Result_1);
+   changeOwner: (text) -> (Result_1);
    claimTokens: (text) -> (Result);
    connectUserToPrincipal: (text) -> (Result);
    createCourse: (text, text) -> (Result);
    createResource: (text, text, text, ResourceType__1) -> (Result);
-   delete_email_subscriber: (text) -> (bool);
    enrollCourse: (text, text) -> (Result);
-   generateQuestionsForCourse: (text) -> (Result_3);
+   generateQuestionsForCourse: (text) -> (Result_2);
    generateRandomNumber: (nat) -> (nat);
    getAcls: () -> (vec principal) query;
-   getCourseQuestions: (text) -> (Result_7) query;
-   getCourseResources: (text) -> (Result_10) query;
+   getCourseKnowledgebase: (text) -> (Result_9);
+   getCourseQuestions: (text) -> (Result_5) query;
+   getCourseResources: (text) -> (Result_8) query;
    getOwner: () -> (principal) query;
-   getProfile: (text) -> (Result_9) query;
-   getRandomCourseQuestions: (text, nat) -> (Result_7) query;
-   getRunMessage: (text, text) -> (Result_8);
-   getRunQuestions: (text) -> (Result_7);
-   getRunStatus: (text) -> (Result_6) query;
+   getProfile: (text) -> (Result_7) query;
+   getRandomCourseQuestions: (text, nat) -> (Result_5) query;
+   getRunMessage: (text, text) -> (Result_6);
+   getRunQuestions: (text) -> (Result_5);
+   getRunStatus: (text) -> (Result_4) query;
    getRunsInQueue: () -> (vec SharedThreadRun) query;
-   getUserEnrolledCourse: (text, text) -> (Result_5) query;
-   get_course_memory_vectors: (text) -> (Result_4) query;
-   get_education_experiences: () -> (vec EducationExperience) query;
-   get_email_subscribers: () -> (vec record {
-                                       text;
-                                       EmailSubscriber;
-                                     }) query;
+   getUserEnrolledCourse: (text, text) -> (Result_3) query;
    get_icrc1_token_canister_id: () -> (text) query;
    listCourses: () -> (vec SharedCourse) query;
    loginOrRegiser: (text) -> (Result);
-   removeAcls: (principal) -> (Result_2);
-   removeQuestion: (text, text) -> (Result_2);
-   removeResource: (text, text) -> (Result_2);
-   sendMessage: (text, text, text, text) -> (Result_3);
-   setAssistantId: (text) -> (Result_2);
-   setRunProcess: (text, bool) -> (Result_2);
-   set_icrc1_token_canister: (text) -> (Result_2);
-   store_course_memory_vectors: (text, vec MemoryVector) -> (Result_1);
+   removeAcls: (principal) -> (Result_1);
+   removeQuestion: (text, text) -> (Result_1);
+   removeResource: (text, text) -> (Result_1);
+   sendMessage: (text, text, text, text) -> (Result_2);
+   setAssistantId: (text) -> (Result_1);
+   setCanisterCreationCanisterId: (text) -> (AuthRecordResult);
+   setRunProcess: (text, bool) -> (Result_1);
+   set_icrc1_token_canister: (principal) -> (Result_1);
    submitQuestionsAttempt: (text, vec SubmittedAnswer, text) -> (Result);
-   submit_signup_form: (SignUpFormInput) -> (text);
    transform: (TransformArgs) -> (CanisterHttpResponsePayload) query;
    updateCourse: (text, text, text) -> (Result);
+ };
+type AuthRecordResult = 
+ variant {
+   err: ApiError__1;
+   ok: AuthRecord;
+ };
+type AuthRecord = record {auth: text;};
+type ApiError__1 = 
+ variant {
+   InvalidTokenId;
+   NotFound: text;
+   Other: text;
+   Unauthorized;
+   ZeroAddress;
  };
 type ApiError = 
  variant {

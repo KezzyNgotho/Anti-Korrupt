@@ -12,6 +12,8 @@ import Nat64 "mo:base/Nat64";
 import Error "mo:base/Error";
 import Debug "mo:base/Debug";
 import { recurringTimer } = "mo:base/Timer";
+import Float "mo:base/Float";
+import CandyTypesLib "mo:candy_0_3_0/types";
 
 import Utils "./Utils";
 import Types "./Types";
@@ -24,7 +26,7 @@ import JSON "mo:json.mo";
 import ICRC1 "mo:icrc1-types";
 import Prng "mo:prng";
 
-shared ({ caller }) actor class Backend() {
+shared ({ caller }) actor class Backend() = this {
   type Result<A, B> = Types.Result<A, B>;
   type SharedCourse = Types.SharedCourse;
   type User = Types.User;
@@ -45,17 +47,24 @@ shared ({ caller }) actor class Backend() {
   type EnrolledCourseProgress = Types.EnrolledCourseProgress;
   type ApiError = Types.ApiError;
   type MemoryVector = Types.MemoryVector;
+  type KnowledgeFoundNFT = Types.KnowledgeFoundNFT;
+  type NFTMetadata = Types.NFTMetadata;
 
   stable let members = Map.new<Text, User>();
   stable let courses = Map.new<Text, Course>();
   stable var threadRunQueue = Map.new<Text, ThreadRun>();
   stable var acls = Vector.new<Principal>();
   stable var courseThreads = Map.new<Text, Text>();
+  stable let user_to_claimable_nfts = Map.new<Text, Map.Map<Text, NFTMetadata>>();
 
   stable var owner = caller;
 
   var icrc1Actor_ : ICRC1.Service = actor ("mxzaz-hqaaa-aaaar-qaada-cai");
   stable var icrc1TokenCanisterId_ : Text = "invalid";
+
+  stable var nftCanisterId_ = "aaaaa-aa";
+  var nftActor_ : KnowledgeFoundNFT = actor (nftCanisterId_);
+  stable var tokenCounter = 0;
 
   stable var API_KEY : Text = "";
   stable var ASSISTANT_ID : Text = "";
@@ -132,6 +141,31 @@ shared ({ caller }) actor class Backend() {
       };
     };
     return false;
+  };
+
+  // get nft canister id
+  public query func get_nft_canister_id() : async Text {
+    nftCanisterId_;
+  };
+
+  // set nft canister
+  public shared ({ caller }) func set_nft_canister(nftCanisterId : Text) : async Result<(), Text> {
+    if (_isAllowed(caller) == false) return #err("Not authorized");
+
+    let nftCanister = try {
+      #ok(actor (nftCanisterId) : KnowledgeFoundNFT);
+    } catch e #err(e);
+
+    switch (nftCanister) {
+      case (#ok(nftActor)) {
+        nftActor_ := nftActor;
+        nftCanisterId_ := nftCanisterId;
+        #ok;
+      };
+      case (#err(e)) {
+        #err("Failed to instantiate KnowledgeFoundNFT canister from given id(" # nftCanisterId # ") for reason " # Error.message(e));
+      };
+    };
   };
 
   // Generate random number
@@ -352,6 +386,7 @@ shared ({ caller }) actor class Backend() {
               summary = c.summary;
               resources = c.resources;
               questions = c.questions;
+              knowledgebase = c.knowledgebase;
             };
             Map.set(courses, thash, c.id, updatedCourse);
             return #ok("Course enrolled successfully");
@@ -448,16 +483,40 @@ shared ({ caller }) actor class Backend() {
     let resources = Vector.new<Resource>();
     let questions = Vector.new<Question>();
     let courseId = await Utils.uuid();
-    let course = {
-      id = courseId;
-      title = title;
-      summary = summary;
-      resources = resources;
-      questions = questions;
-    };
 
-    Map.set(courses, thash, courseId, course);
-    #ok(courseId);
+    // Create knowledge base canister
+    let knowledgebase = await createKnowledgeBaseCanister();
+
+    switch (knowledgebase) {
+      case (#ok(info)) {
+        let course = {
+          id = courseId;
+          title = title;
+          summary = summary;
+          resources = resources;
+          questions = questions;
+          knowledgebase = info;
+        };
+
+        Map.set(courses, thash, courseId, course);
+        #ok(courseId);
+      };
+      case (#err(error)) {
+        return #err(error);
+      };
+    };
+  };
+
+  public func getCourseKnowledgebase(courseId : Text) : async Result<Types.CanisterInfo, ApiError> {
+    let course = _getCourse(courseId);
+    switch (course) {
+      case (?c) {
+        #ok(c.knowledgebase);
+      };
+      case (null) {
+        #err(#NotFound("Course not found"));
+      };
+    };
   };
 
   // Create new resource for course
@@ -479,6 +538,7 @@ shared ({ caller }) actor class Backend() {
           summary = c.summary;
           resources = c.resources;
           questions = c.questions;
+          knowledgebase = c.knowledgebase;
         };
         Map.set(courses, thash, c.id, updatedCourse);
         return #ok("Resource created successfully");
@@ -524,6 +584,7 @@ shared ({ caller }) actor class Backend() {
           summary = c.summary;
           resources = newResources;
           questions = c.questions;
+          knowledgebase = c.knowledgebase;
         };
         Map.set(courses, thash, c.id, updatedCourse);
       };
@@ -546,6 +607,7 @@ shared ({ caller }) actor class Backend() {
           summary = summary;
           resources = c.resources;
           questions = c.questions;
+          knowledgebase = c.knowledgebase;
         };
         Map.set(courses, thash, c.id, updatedCourse);
         return #ok("Course updated successfully");
@@ -575,6 +637,7 @@ shared ({ caller }) actor class Backend() {
           summary = c.summary;
           resources = c.resources;
           questions = c.questions;
+          knowledgebase = c.knowledgebase;
         };
         Map.set(courses, thash, c.id, updatedCourse);
         return #ok("Question added successfully");
@@ -607,6 +670,7 @@ shared ({ caller }) actor class Backend() {
           summary = c.summary;
           resources = c.resources;
           questions = newQuestions;
+          knowledgebase = c.knowledgebase;
         };
         Map.set(courses, thash, c.id, updatedCourse);
       };
@@ -702,8 +766,8 @@ shared ({ caller }) actor class Backend() {
                   };
                 };
 
-                if (correctCount != Array.size(answers)) {
-                  return #err(#Other("You did not get all the questions, Try again"));
+                if (((Float.fromInt(correctCount) * 100.0) / Float.fromInt(Array.size(answers))) >= 80.0) {
+                  return #err(#Other("You must get at least 80% to complete the course, please try again"));
                 };
 
                 var enrolledCourseIndex = 0;
@@ -717,6 +781,15 @@ shared ({ caller }) actor class Backend() {
                 let previousValue = Vector.get(member.enrolledCourses, enrolledCourseIndex);
                 if (previousValue.completed) {
                   return #err(#Other("You have already completed this course before"));
+                };
+
+                let metadata : NFTMetadata = {
+                  courseId = c.id;
+                  userId = userId;
+                  courseTitle = c.title;
+                  user = caller;
+                  userName = member.fullname;
+                  issued_on = Time.now();
                 };
 
                 if (not Principal.isAnonymous(caller)) {
@@ -758,9 +831,107 @@ shared ({ caller }) actor class Backend() {
                       return #err(#Other("Internal transfer error"));
                     };
                   };
+
+                  // Mint NFT
+                  let candyMetadata : CandyTypesLib.CandyShared = #Class([
+                    {
+                      immutable = false;
+                      name = "courseId";
+                      value = #Text(metadata.courseId);
+                    },
+                    {
+                      immutable = false;
+                      name = "courseTitle";
+                      value = #Text(metadata.courseTitle);
+                    },
+                    {
+                      immutable = false;
+                      name = "userId";
+                      value = #Text(metadata.userId);
+                    },
+                    {
+                      immutable = false;
+                      name = "user";
+                      value = #Text(Principal.toText(metadata.user));
+                    },
+                    {
+                      immutable = false;
+                      name = "userName";
+                      value = #Text(metadata.userName);
+                    },
+                    {
+                      immutable = false;
+                      name = "mark";
+                      value = #Nat(correctCount);
+                    },
+                    {
+                      immutable = false;
+                      name = "issued_on";
+                      value = #Int(metadata.issued_on);
+                    },
+                  ]);
+                  tokenCounter := tokenCounter + 1;
+                  let tokens : ICRC7Type.SetNFTRequest = [{
+                    token_id = tokenCounter;
+                    owner = ?{ owner = metadata.user; subaccount = null };
+                    override = true;
+                    created_at_time = null;
+                    memo = ?Text.encodeUtf8("Issued Knowledge Found NFT");
+                    metadata = candyMetadata;
+                  }];
+                  let nfts = await nftActor_.icrcX_mint(tokens);
+                  let nft = nfts[0];
+                  switch (nft) {
+                    case (#Ok(tokId)) {
+                      switch (tokId) {
+                        case (null) {
+                          return #err("Failed to mint Knowledge Found NFT");
+                        };
+                        case (?tokenId) {
+                          return #ok(tokenCounter);
+                        };
+                      };
+                    };
+                    case (#Err(err)) {
+                      switch (err) {
+                        case (#NonExistingTokenId) {
+                          return #err("Non existing token id");
+                        };
+                        case (#TokenExists) {
+                          return #err("Token already exists");
+                        };
+                        case (#TooOld) {
+                          return #err("Transaction is too old");
+                        };
+                        case (#GenericError(e)) {
+                          return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                        };
+                        case (#CreatedInFuture(e)) {
+                          return #err("Created in future: " # debug_show (e.ledger_time));
+                        };
+                      };
+                    };
+                    case (#GenericError(e)) {
+                      return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                    };
+                  };
                 } else {
                   // Increment claimable tokens
                   member.claimableTokens := member.claimableTokens + 10;
+
+                  // Update user claimable nfts
+                  let claimableNfts = Map.get(user_to_claimable_nfts, thash, userId);
+                  switch (claimableNfts) {
+                    case (null) {
+                      let newClaimableNfts = Map.new<Text, NFTMetadata>();
+                      Map.set(newClaimableNfts, thash, await Utils.uuid(), metadata);
+                      Map.set(user_to_claimable_nfts, thash, userId, newClaimableNfts);
+                    };
+                    case (?t) {
+                      Map.set(t, thash, await Utils.uuid(), metadata);
+                      Map.set(user_to_claimable_nfts, thash, userId, t);
+                    };
+                  };
                 };
 
                 // Updated enrolled course to completed
@@ -861,6 +1032,141 @@ shared ({ caller }) actor class Backend() {
     };
   };
 
+  public func get_user_claimable_nfts(userId : Text) : async Result<[NFTMetadata], Text> {
+    let nfts = Map.get(user_to_claimable_nfts, thash, userId);
+    switch (nfts) {
+      case (null) {
+        #ok([]);
+      };
+      case (?t) {
+        #ok(Iter.toArray(Map.vals(t)));
+      };
+    };
+  };
+
+  // Claim NFTs
+  public shared ({ caller }) func claimNFTs(userId : Text, claimableId: Text) : async Result<Text, ApiError> {
+    if (Principal.isAnonymous(caller)) {
+      return #err(#Unauthorized);
+    };
+    let user = Map.get(members, thash, userId);
+    switch (user) {
+      case (?member) {
+        switch (member.principal) {
+          case (null) {
+            return #err(#Other("User not connected to principal"));
+          };
+          case (?p) {
+            if (Principal.notEqual(caller, p)) {
+              return #err(#Unauthorized);
+            };
+            switch (Map.get(user_to_claimable_nfts, thash, userId)) {
+              case (null) {
+                return #err(#Other("No NFTs to claim"));
+              };
+              case (?claimableNfts) {
+                switch (Map.get(claimableNfts, thash, claimableId)) {
+                  case (null) {
+                    return #err(#NotFound("Claimable NFT not found"));
+                  };
+                  case (?metadata) {
+                    let candyMetadata : CandyTypesLib.CandyShared = #Class([
+                      {
+                        immutable = false;
+                        name = "courseId";
+                        value = #Text(metadata.courseId);
+                      },
+                      {
+                        immutable = false;
+                        name = "courseTitle";
+                        value = #Text(metadata.courseTitle);
+                      },
+                      {
+                        immutable = false;
+                        name = "userId";
+                        value = #Text(metadata.userId);
+                      },
+                      {
+                        immutable = false;
+                        name = "user";
+                        value = #Text(Principal.toText(metadata.user));
+                      },
+                      {
+                        immutable = false;
+                        name = "userName";
+                        value = #Text(metadata.userName);
+                      },
+                      {
+                        immutable = false;
+                        name = "mark";
+                        value = #Nat(metadata.mark);
+                      },
+                      {
+                        immutable = false;
+                        name = "issued_on";
+                        value = #Int(metadata.issued_on);
+                      },
+                    ]);
+                    tokenCounter := tokenCounter + 1;
+                    let tokens : ICRC7Type.SetNFTRequest = [{
+                      token_id = tokenCounter;
+                      owner = ?{ owner = caller; subaccount = null };
+                      override = true;
+                      created_at_time = null;
+                      memo = ?Text.encodeUtf8("Issued Knowledge Found NFT");
+                      metadata = candyMetadata;
+                    }];
+                    let nfts = await nftActor_.icrcX_mint(tokens);
+                    let nft = nfts[0];
+                    switch (nft) {
+                      case (#Ok(tokId)) {
+                        switch (tokId) {
+                          case (null) {
+                            return #err("Failed to mint Knowledge Found NFT");
+                          };
+                          case (?tokenId) {
+                            Map.delete(claimableNfts, thash, claimableId);
+                            Map.set(user_to_claimable_nfts, thash, userId, claimableNfts);
+                            return #ok("NFT claimed successfully");
+                          };
+                        };
+                      };
+                      case (#Err(err)) {
+                        switch (err) {
+                          case (#NonExistingTokenId) {
+                            return #err("Non existing token id");
+                          };
+                          case (#TokenExists) {
+                            return #err("Token already exists");
+                          };
+                          case (#TooOld) {
+                            return #err("Transaction is too old");
+                          };
+                          case (#GenericError(e)) {
+                            return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                          };
+                          case (#CreatedInFuture(e)) {
+                            return #err("Created in future: " # debug_show (e.ledger_time));
+                          };
+                        };
+                      };
+                      case (#GenericError(e)) {
+                        return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                      };
+                    };
+                  };
+                }
+              }
+            }
+          };
+        };
+      };
+      case (null) {
+        return #err(#NotFound("User not found"));
+      };
+    };
+  };
+
   // Http response transformer
   public query func transform(raw : Types.TransformArgs) : async Types.CanisterHttpResponsePayload {
     let transformed : Types.CanisterHttpResponsePayload = {
@@ -885,7 +1191,7 @@ shared ({ caller }) actor class Backend() {
   };
 
   // Send new message in an enrolled course chat
-  public shared func sendMessage(threadId : Text, prompt : Text, extraText : Text, userId : Text) : async Result<SendMessageStatus, SendMessageStatus> {
+  public shared func sendMessage(threadId : Text, prompt : Text, knowledgebaseContent : Text, userId : Text) : async Result<SendMessageStatus, SendMessageStatus> {
     let user = Map.get(members, thash, userId);
     switch (user) {
       case (?member) {
@@ -913,7 +1219,7 @@ shared ({ caller }) actor class Backend() {
 
             var data = #Object([
               ("role", #String("user")),
-              ("content", #String("Prompt: " # prompt # "\n\n" # extraText)),
+              ("content", #String("Prompt: " # prompt # "\n\n This is an additional context provided to give you more context on the question if it's relevant\n\n" # knowledgebaseContent)),
             ]);
 
             let headers : ?[Types.HttpHeader] = ?[
@@ -1502,6 +1808,7 @@ shared ({ caller }) actor class Backend() {
                               summary = c.summary;
                               resources = c.resources;
                               questions = qsItems;
+                              knowledgebase = c.knowledgebase;
                             };
                             Map.set(courses, thash, c.id, updatedCourse);
 
@@ -1706,52 +2013,41 @@ shared ({ caller }) actor class Backend() {
   // Timers
   ignore recurringTimer<system>(#seconds 5, pollRuns);
 
-  // Course Vector Database
-  stable var courseMemoryVectorsStorage = Map.new<Text, [MemoryVector]>();
-
-  private func putCourseMemoryVectors(courseId : Text, memoryVectors : [MemoryVector]) : Bool {
-    let currentMemoryVectors = getCourseMemoryVectors(courseId);
-    switch (currentMemoryVectors) {
-      case (null) {
-        Map.set(courseMemoryVectorsStorage, thash, courseId, memoryVectors);
-      };
-      case (?vectors) {
-        let buf = Buffer.fromArray<MemoryVector>(vectors);
-        let buf2 = Buffer.fromArray<MemoryVector>(memoryVectors);
-        buf.append(buf2);
-        let newVectors = Buffer.toArray<MemoryVector>(buf);
-        Map.set(courseMemoryVectorsStorage, thash, courseId, newVectors);
-      };
-    };
-    return true;
+  stable var CANISTER_CREATION_CANISTER_ID : Text = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
+  let canisterCreationCanister = actor (CANISTER_CREATION_CANISTER_ID) : actor {
+    amiController() : async Types.AuthRecordResult;
+    createCanister : (configurationInput : Types.CanisterCreationConfiguration) -> async Types.CanisterCreationResult;
   };
-
-  private func getCourseMemoryVectors(courseId : Text) : ?[MemoryVector] {
-    switch (Map.get(courseMemoryVectorsStorage, thash, courseId)) {
-      case (null) { return null };
-      case (?memoryVectors) { return ?memoryVectors };
-    };
-  };
-
-  public shared ({ caller }) func store_course_memory_vectors(courseId : Text, memoryVectors : [MemoryVector]) : async Result<Bool, ApiError> {
+  public shared (msg) func setCanisterCreationCanisterId(_canister_creation_canister_id : Text) : async Types.AuthRecordResult {
     if (not _isAllowed(caller)) return #err(#Unauthorized);
-
-    let result = putCourseMemoryVectors(courseId, memoryVectors);
-
-    return #ok(result);
-  };
-
-  public query func get_course_memory_vectors(courseId : Text) : async Result<[MemoryVector], ApiError> {
-    switch (getCourseMemoryVectors(courseId)) {
-      case (null) { return #err(#Unauthorized) };
-      case (?memoryVectors) { return #ok(memoryVectors) };
+    CANISTER_CREATION_CANISTER_ID := _canister_creation_canister_id;
+    let authRecord = {
+      auth = "You set the creation canister for this canister.";
     };
+    return #ok(authRecord);
   };
 
-  public query func check_course_has_memory_vectors_entry(courseId : Text) : async Result<Bool, ApiError> {
-    switch (getCourseMemoryVectors(courseId)) {
-      case (null) { return #err(#Unauthorized) };
-      case (?memoryVectors) { return #ok(true) };
+  // Course Knowledge base
+  private func createKnowledgeBaseCanister() : async Types.CourseCanisterCreationResult {
+    let canisterConfiguration : Types.CanisterCreationConfiguration = {
+      canisterType : Types.CanisterType = #Knowledgebase;
+      owner : Principal = Principal.fromActor(this);
+    };
+    let createCanisterResult : Types.CanisterCreationResult = await canisterCreationCanister.createCanister(canisterConfiguration);
+
+    switch (createCanisterResult) {
+      case (#err(createCanisterError)) {
+        return #err(createCanisterError);
+      };
+      case (#ok(createCanisterSuccess)) {
+        // Create new entry for user
+        let newCanisterInfo : Types.CanisterInfo = {
+          canisterType : Types.CanisterType = #Knowledgebase;
+          creationTimestamp : Nat64 = Nat64.fromNat(Int.abs(Time.now()));
+          canisterAddress : Text = createCanisterSuccess.newCanisterId;
+        };
+        return #ok(newCanisterInfo);
+      };
     };
   };
 };

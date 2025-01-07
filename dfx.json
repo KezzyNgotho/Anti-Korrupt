@@ -6,10 +6,14 @@
       "wasm": "https://download.dfinity.systems/ic/7dee90107a88b836fc72e78993913988f4f73ca2/canisters/ic-icrc1-ledger.wasm.gz"
     },
     "backend": {
+      "dependencies": [
+        "knowledge_found_nft",
+        "arcmindvectordb"
+      ],
       "main": "src/backend/main.mo",
       "type": "motoko"
     },
-    "DeVinci_frontend": {
+    "frontend": {
       "dependencies": [
         "backend"
       ],
@@ -24,6 +28,23 @@
     "internet-identity": {
       "type": "pull",
       "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+    },
+    "knowledge_found_nft": {
+      "declarations": {
+        "node_compatibility": true
+      },
+      "main": "src/knowledge_found_nft/main.mo",
+      "type": "motoko"
+    },
+    "arcmindvectordb": {
+      "candid": "src/arcmindvector/src/arcmindvectordb/arcmindvectordb.did",
+      "package": "arcmindvectordb",
+      "type": "rust",
+      "optimize": "cycles",
+      "gzip": true,
+      "declarations": {
+        "node_compatibility": true
+      }
     }
   },
   "defaults": {

@@ -139,7 +139,7 @@ dfx deploy backend
 Using the local replica:
 
 ```bash
-dfx deploy DeVinci_frontend
+dfx deploy frontend
 ```
 
 Alternative: Run a local vite UI
@@ -212,7 +212,7 @@ Deploy the code as canisters to the live IC where it's accessible via regular We
 
 ```bash
 dfx deploy backend --ic
-dfx deploy DeVinci_frontend --ic
+dfx deploy frontend --ic
 ./cli createToken default icrc1_ledger_canister ic
 ```
 
@@ -232,7 +232,7 @@ Due to the IC's reverse gas model, developers charge their canisters with cycles
 dfx identity get-wallet --ic
 dfx wallet balance --ic
 dfx canister status backend --ic
-dfx canister status DeVinci_frontend --ic
+dfx canister status frontend --ic
 dfx canister deposit-cycles 3T backend --ic
-dfx canister deposit-cycles 3T DeVinci_frontend --ic
+dfx canister deposit-cycles 3T frontend --ic
 ```
