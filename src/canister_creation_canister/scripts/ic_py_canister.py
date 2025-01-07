@@ -1,7 +1,10 @@
 """Returns the ic-py Canister instance, for calling the endpoints."""
 
+import getpass
+import os
 import sys
 import platform
+import pexpect
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -22,19 +25,59 @@ if platform.win32_ver()[0]:
     RUN_IN_POWERSHELL = True
 
 
-def run_dfx_command(cmd: str) -> Optional[str]:
-    """Runs dfx command as a subprocess"""
+def run_dfx_command(cmd: str, requires_password: bool = False) -> Optional[str]:
+    """
+    Runs dfx command as a subprocess with support for interactive password input using pexpect
+    
+    Args:
+        cmd: The dfx command to run
+        requires_password: Whether the command requires password input
+    
+    Returns:
+        The command output if successful, None otherwise
+    """
     try:
-        return run_shell_cmd(
-            cmd,
-            capture_output=True,
-            run_in_powershell=RUN_IN_POWERSHELL,
-        ).rstrip("\n")
-    except subprocess.CalledProcessError as e:
-        print(f"Failed dfx command: '{cmd}' with error: \n{e.output}")
+        if requires_password:
+            # Create the process with pexpect
+            child = pexpect.spawn(cmd, encoding='utf-8')
+            
+            # Wait for password prompt
+            index = child.expect(['Please enter the passphrase for your identity:', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+            
+            if index == 0:  # Password prompt received
+                # Get password from environment variable or prompt user
+                password = os.environ.get('DFX_IDENTITY_PASSWORD')
+                if not password:
+                    # Use raw_input instead of getpass since we're already managing the prompt
+                    from getpass import getpass
+                    password = getpass("Enter password: ")
+                
+                child.sendline(password)
+                
+                # Wait for command to complete
+                index = child.expect(['-----END EC PRIVATE KEY-----', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+                output = child.before
+                
+                if index != 0:
+                    print(f"Failed dfx command: '{cmd}' with error: \n{output}")
+                    sys.exit(1)
+                    
+                return output.strip()
+            else:
+                print(f"Failed to get password prompt. Command output: {child.before}")
+                sys.exit(1)
+        else:
+            # Use original implementation for non-password commands
+            return run_shell_cmd(
+                cmd,
+                capture_output=True,
+                run_in_powershell=RUN_IN_POWERSHELL,
+            ).rstrip("\n")
+            
+    except Exception as e:
+        print(f"Failed dfx command: '{cmd}' with error: \n{str(e)}")
         sys.exit(1)
     return None
-
 
 def get_canister(
     canister_name: str,
@@ -81,7 +124,7 @@ def get_canister(
     print(f"Canister ID = {canister_id}")
 
     # Get the private key of the current identity
-    private_key = run_dfx_command(f"{DFX} identity export {identity_whoami} ")
+    private_key = run_dfx_command(f"{DFX} identity export {identity_whoami} ", requires_password=True)
 
     # Create an Identity instance using the private key
     identity = Identity.from_pem(private_key)

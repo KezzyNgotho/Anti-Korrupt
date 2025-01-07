@@ -25,7 +25,7 @@ dfx deploy --network development canister_creation_canister
 ## production
 dfx deploy --ic canister_creation_canister
 
-# Set DeVinci Backend as master canister (you have to deploy that canister first and then return with its id)
+# Set Backend as master canister (you have to deploy that canister first and then return with its id)
 # local
 dfx canister call canister_creation_canister setMasterCanisterId '("be2us-64aaa-aaaaa-qaabq-cai")'
 
@@ -42,7 +42,7 @@ dfx canister call --ic canister_creation_canister setMasterCanisterId '("xzpew-m
 
 Setup python environment:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 

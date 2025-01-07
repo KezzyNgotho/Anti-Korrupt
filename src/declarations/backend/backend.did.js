@@ -1,4 +1,12 @@
 export const idlFactory = ({ IDL }) => {
+  const ApiError = IDL.Variant({
+    'ZeroAddress' : IDL.Null,
+    'NotFound' : IDL.Text,
+    'InvalidTokenId' : IDL.Null,
+    'Unauthorized' : IDL.Null,
+    'Other' : IDL.Text,
+  });
+  const Result = IDL.Variant({ 'ok' : IDL.Text, 'err' : ApiError });
   const QuestionOption = IDL.Record({
     'option' : IDL.Nat,
     'description' : IDL.Text,
@@ -9,15 +17,7 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Text,
     'options' : IDL.Vec(QuestionOption),
   });
-  const ApiError = IDL.Variant({
-    'ZeroAddress' : IDL.Null,
-    'NotFound' : IDL.Text,
-    'InvalidTokenId' : IDL.Null,
-    'Unauthorized' : IDL.Null,
-    'Other' : IDL.Text,
-  });
-  const Result = IDL.Variant({ 'ok' : IDL.Text, 'err' : ApiError });
-  const Result_1 = IDL.Variant({ 'ok' : IDL.Null, 'err' : ApiError });
+  const Result_2 = IDL.Variant({ 'ok' : IDL.Null, 'err' : ApiError });
   const ResourceType__1 = IDL.Variant({
     'Book' : IDL.Null,
     'Article' : IDL.Null,
@@ -29,7 +29,7 @@ export const idlFactory = ({ IDL }) => {
     'ThreadLock' : IDL.Record({ 'runId' : IDL.Text }),
     'Completed' : IDL.Record({ 'runId' : IDL.Text }),
   });
-  const Result_2 = IDL.Variant({
+  const Result_3 = IDL.Variant({
     'ok' : SendMessageStatus,
     'err' : SendMessageStatus,
   });
@@ -39,8 +39,8 @@ export const idlFactory = ({ IDL }) => {
     'creationTimestamp' : IDL.Nat64,
     'canisterAddress' : IDL.Text,
   });
-  const Result_9 = IDL.Variant({ 'ok' : CanisterInfo, 'err' : ApiError });
-  const Result_5 = IDL.Variant({ 'ok' : IDL.Vec(Question), 'err' : ApiError });
+  const Result_11 = IDL.Variant({ 'ok' : CanisterInfo, 'err' : ApiError });
+  const Result_7 = IDL.Variant({ 'ok' : IDL.Vec(Question), 'err' : ApiError });
   const ResourceType = IDL.Variant({
     'Book' : IDL.Null,
     'Article' : IDL.Null,
@@ -53,21 +53,21 @@ export const idlFactory = ({ IDL }) => {
     'title' : IDL.Text,
     'rType' : ResourceType,
   });
-  const Result_8 = IDL.Variant({ 'ok' : IDL.Vec(Resource), 'err' : ApiError });
+  const Result_10 = IDL.Variant({ 'ok' : IDL.Vec(Resource), 'err' : ApiError });
   const SharedUser = IDL.Record({
     'id' : IDL.Text,
     'principal' : IDL.Opt(IDL.Principal),
     'fullname' : IDL.Text,
     'claimableTokens' : IDL.Nat,
   });
-  const Result_7 = IDL.Variant({ 'ok' : SharedUser, 'err' : ApiError });
+  const Result_9 = IDL.Variant({ 'ok' : SharedUser, 'err' : ApiError });
   const MessageType = IDL.Variant({ 'System' : IDL.Null, 'User' : IDL.Null });
   const Message__1 = IDL.Record({
     'content' : IDL.Text,
     'role' : MessageType,
     'runId' : IDL.Opt(IDL.Text),
   });
-  const Result_6 = IDL.Variant({ 'ok' : Message__1, 'err' : ApiError });
+  const Result_8 = IDL.Variant({ 'ok' : Message__1, 'err' : ApiError });
   const RunStatus__1 = IDL.Variant({
     'Failed' : IDL.Null,
     'Cancelled' : IDL.Null,
@@ -75,7 +75,7 @@ export const idlFactory = ({ IDL }) => {
     'Completed' : IDL.Null,
     'Expired' : IDL.Null,
   });
-  const Result_4 = IDL.Variant({ 'ok' : RunStatus__1, 'err' : ApiError });
+  const Result_6 = IDL.Variant({ 'ok' : RunStatus__1, 'err' : ApiError });
   const ThreadRunJob = IDL.Variant({
     'Question' : IDL.Null,
     'Message' : IDL.Null,
@@ -108,9 +108,26 @@ export const idlFactory = ({ IDL }) => {
     'completed' : IDL.Bool,
     'threadId' : IDL.Text,
   });
-  const Result_3 = IDL.Variant({
+  const Result_5 = IDL.Variant({
     'ok' : SharedEnrolledCourse,
     'err' : ApiError,
+  });
+  const NFTMetadata = IDL.Record({
+    'userName' : IDL.Text,
+    'issued_on' : Time,
+    'userId' : IDL.Text,
+    'mark' : IDL.Nat,
+    'user' : IDL.Principal,
+    'courseTitle' : IDL.Text,
+    'courseId' : IDL.Text,
+  });
+  const ClaimableNFT = IDL.Record({
+    'id' : IDL.Text,
+    'metadata' : NFTMetadata,
+  });
+  const Result_4 = IDL.Variant({
+    'ok' : IDL.Vec(ClaimableNFT),
+    'err' : IDL.Text,
   });
   const SharedCourse = IDL.Record({
     'id' : IDL.Text,
@@ -129,6 +146,7 @@ export const idlFactory = ({ IDL }) => {
     'ok' : AuthRecord,
     'err' : ApiError__1,
   });
+  const Result_1 = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
   const SubmittedAnswer = IDL.Record({
     'option' : IDL.Nat,
     'questionId' : IDL.Text,
@@ -151,9 +169,15 @@ export const idlFactory = ({ IDL }) => {
   const Backend = IDL.Service({
     'addAcls' : IDL.Func([IDL.Principal], [], ['oneway']),
     'addAclsText' : IDL.Func([IDL.Text], [], ['oneway']),
+    'addEmbedding' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Float64)],
+        [Result],
+        [],
+      ),
     'addQuestion' : IDL.Func([IDL.Text, Question], [Result], []),
-    'changeApiKey' : IDL.Func([IDL.Text], [Result_1], []),
-    'changeOwner' : IDL.Func([IDL.Text], [Result_1], []),
+    'changeApiKey' : IDL.Func([IDL.Text], [Result_2], []),
+    'changeOwner' : IDL.Func([IDL.Text], [Result_2], []),
+    'claimNFTs' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
     'claimTokens' : IDL.Func([IDL.Text], [Result], []),
     'connectUserToPrincipal' : IDL.Func([IDL.Text], [Result], []),
     'createCourse' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
@@ -163,47 +187,50 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'enrollCourse' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
-    'generateQuestionsForCourse' : IDL.Func([IDL.Text], [Result_2], []),
+    'generateQuestionsForCourse' : IDL.Func([IDL.Text], [Result_3], []),
     'generateRandomNumber' : IDL.Func([IDL.Nat], [IDL.Nat], []),
     'getAcls' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
-    'getCourseKnowledgebase' : IDL.Func([IDL.Text], [Result_9], []),
-    'getCourseQuestions' : IDL.Func([IDL.Text], [Result_5], ['query']),
-    'getCourseResources' : IDL.Func([IDL.Text], [Result_8], ['query']),
+    'getCourseKnowledgebase' : IDL.Func([IDL.Text], [Result_11], []),
+    'getCourseQuestions' : IDL.Func([IDL.Text], [Result_7], ['query']),
+    'getCourseResources' : IDL.Func([IDL.Text], [Result_10], ['query']),
     'getOwner' : IDL.Func([], [IDL.Principal], ['query']),
-    'getProfile' : IDL.Func([IDL.Text], [Result_7], ['query']),
+    'getProfile' : IDL.Func([IDL.Text], [Result_9], ['query']),
     'getRandomCourseQuestions' : IDL.Func(
         [IDL.Text, IDL.Nat],
-        [Result_5],
+        [Result_7],
         ['query'],
       ),
-    'getRunMessage' : IDL.Func([IDL.Text, IDL.Text], [Result_6], []),
-    'getRunQuestions' : IDL.Func([IDL.Text], [Result_5], []),
-    'getRunStatus' : IDL.Func([IDL.Text], [Result_4], ['query']),
+    'getRunMessage' : IDL.Func([IDL.Text, IDL.Text], [Result_8], []),
+    'getRunQuestions' : IDL.Func([IDL.Text], [Result_7], []),
+    'getRunStatus' : IDL.Func([IDL.Text], [Result_6], ['query']),
     'getRunsInQueue' : IDL.Func([], [IDL.Vec(SharedThreadRun)], ['query']),
     'getUserEnrolledCourse' : IDL.Func(
         [IDL.Text, IDL.Text],
-        [Result_3],
+        [Result_5],
         ['query'],
       ),
     'get_icrc1_token_canister_id' : IDL.Func([], [IDL.Text], ['query']),
+    'get_nft_canister_id' : IDL.Func([], [IDL.Text], ['query']),
+    'get_user_claimable_nfts' : IDL.Func([IDL.Text], [Result_4], []),
     'listCourses' : IDL.Func([], [IDL.Vec(SharedCourse)], ['query']),
     'loginOrRegiser' : IDL.Func([IDL.Text], [Result], []),
-    'removeAcls' : IDL.Func([IDL.Principal], [Result_1], []),
-    'removeQuestion' : IDL.Func([IDL.Text, IDL.Text], [Result_1], []),
-    'removeResource' : IDL.Func([IDL.Text, IDL.Text], [Result_1], []),
+    'removeAcls' : IDL.Func([IDL.Principal], [Result_2], []),
+    'removeQuestion' : IDL.Func([IDL.Text, IDL.Text], [Result_2], []),
+    'removeResource' : IDL.Func([IDL.Text, IDL.Text], [Result_2], []),
     'sendMessage' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
-        [Result_2],
+        [Result_3],
         [],
       ),
-    'setAssistantId' : IDL.Func([IDL.Text], [Result_1], []),
+    'setAssistantId' : IDL.Func([IDL.Text], [Result_2], []),
     'setCanisterCreationCanisterId' : IDL.Func(
         [IDL.Text],
         [AuthRecordResult],
         [],
       ),
-    'setRunProcess' : IDL.Func([IDL.Text, IDL.Bool], [Result_1], []),
-    'set_icrc1_token_canister' : IDL.Func([IDL.Principal], [Result_1], []),
+    'setRunProcess' : IDL.Func([IDL.Text, IDL.Bool], [Result_2], []),
+    'set_icrc1_token_canister' : IDL.Func([IDL.Principal], [Result_2], []),
+    'set_nft_canister' : IDL.Func([IDL.Text], [Result_1], []),
     'submitQuestionsAttempt' : IDL.Func(
         [IDL.Text, IDL.Vec(SubmittedAnswer), IDL.Text],
         [Result],

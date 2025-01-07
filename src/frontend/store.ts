@@ -395,6 +395,7 @@ export const createStore = ({
         if (canisterEntryResponse.ok) {
           // @ts-ignore
           let canisterAddress =  canisterEntryResponse.ok?.canisterAddress as string;
+          console.log("canisterAddress: ", canisterAddress);
           return createKnowledgebaseCanisterActor(canisterAddress, {
             agentOptions: {
               identity,

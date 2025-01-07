@@ -30,6 +30,8 @@ Anti-Korrupt is an AI-driven educational platform designed to increase global aw
 - [x] Course Chat Assistant
 - [x] Assessment Engine & Token Rewards
 - [x] Unit and E2E Tests for Core Features
+- [ ] RAG for Course Assistant using ArcMind Vector DB
+- [ ] Knowledge Found NFTs
 
 ## 🚧 Future plans
 
@@ -126,12 +128,45 @@ dfx deps deploy
 dfx deploy backend
 ```
 
+- Deploy the NFT canister:
+
+```bash
+BACKEND_CANISTER=$(dfx canister id backend)
+dfx deploy knowledge_found_nft --argument "record {admin_principal = principal \"$BACKEND_CANISTER\";}"
+NFT_CANISTER=$(dfx canister id knowledge_found_nft)
+dfx canister call backend set_nft_canister "(\"$NFT_CANISTER\")"
+```
+
+- Deploy the Canister Creation Canister:
+
+```bash
+BACKEND_CANISTER=$(dfx canister id backend)
+dfx deploy canister_creation_canister
+dfx canister call canister_creation_canister setMasterCanisterId "(\"$BACKEND_CANISTER\")"
+CANISTER_CREATION_CANISTER=$(dfx canister id canister_creation_canister)
+dfx canister call backend setCanisterCreationCanisterId "(\"$CANISTER_CREATION_CANISTER\")"
+
+# Create python virtual environment if not already created
+cd src/canister_creation_canister
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+python3 -m scripts.upload_knowledgebase_canister --network local --canister canister_creation_canister --wasm files/arcmindvectordb.wasm --candid src/declarations/canister_creation_canister/canister_creation_canister.did
+
+# python3 -m scripts.create_canister --network local --canister canister_creation_canister --candid src/declarations/canister_creation_canister/canister_creation_canister.did
+
+python3 -m scripts.add_embedding --network local --canister_id c2lt4-zmaaa-aaaaa-qaaiq-cai --candid src/declarations/arcmindvectordb/arcmindvectordb.did
+```
+
 - Deploy the token ledger:
 
 ```bash
 # ./cli createToken <identity> icrc1_ledger_canister <ic|local>
 # example
-./cli createToken default icrc1_ledger_canister local
+./cli createToken DevJourney backend local
+TOKEN_CANISTER=$(dfx canister id icrc1_ledger_canister)
+dfx canister call backend set_icrc1_token_canister "(principal \"$TOKEN_CANISTER\")"
 ```
 
 - Deploy the frontend canister:
@@ -146,28 +181,6 @@ Alternative: Run a local vite UI
 
 ```bash
 npm run vite
-```
-
-### Helper CLI Canister Calls
-
-A cli has been provided to interact with the canisters easily using the CLI. To use the cli, run the following command:
-
-```bash
-./cli
-```
-
-For example to list courses, run the following command:
-
-```bash
-./cli listCourses
-```
-
-### Seeding the backend canister
-
-To seed the backend canister with some data, run the following command:
-
-```bash
-./seed.sh
 ```
 
 ### Running tests

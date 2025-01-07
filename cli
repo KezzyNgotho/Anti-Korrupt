@@ -93,7 +93,7 @@ record {
          cycles_for_archive_creation = opt ${CYCLE_FOR_ARCHIVE_CREATION};
      };
  }
-    })" --network "$3"
+    })" --network "$3" --mode reinstall
 }
 
 addAcls() {

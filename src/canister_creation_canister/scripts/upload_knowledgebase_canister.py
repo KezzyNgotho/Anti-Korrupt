@@ -13,7 +13,8 @@ from typing import Generator
 from .ic_py_canister import get_canister
 from .parse_args_upload import parse_args
 
-ROOT_PATH = Path(__file__).parent.parent
+ROOT_PATH = Path(__file__).parent.parent.parent.parent
+APP_PATH = Path(__file__).parent.parent
 
 #  0 - none
 #  1 - minimal
@@ -52,7 +53,7 @@ def main() -> int:
     canister_id = args.canister_id
     candid_path = ROOT_PATH / args.candid
     chunk_size_mb = args.chunksize
-    wasm_path = ROOT_PATH / args.wasm
+    wasm_path = APP_PATH / args.wasm
 
     dfx_json_path = ROOT_PATH / "dfx.json"
 

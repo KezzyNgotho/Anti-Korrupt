@@ -1,7 +1,9 @@
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { createActor, idlFactory } from "../../declarations/backend";
+import { createActor as createNftActor } from "../../declarations/knowledge_found_nft";
 
 export const BACKEND_CANISTER_ID = process.env.BACKEND_CANISTER_ID;
+export const CANISTER_ID_KNOWLEDGE_FOUND_NFT = process.env.CANISTER_ID_KNOWLEDGE_FOUND_NFT;
 
 export function errorToText(variant) {
   if (typeof variant === "string") {
@@ -64,4 +66,63 @@ export async function initializeBackend() {
   } catch (error) {
     console.error("Error initializing backend:", error);
   }
+}
+
+
+export async function createKnowledgeFoundNft() {
+	if (!CANISTER_ID_KNOWLEDGE_FOUND_NFT) {
+		throw new Error('Knowledge Found NFT canister ID is not defined.');
+	}
+	return createNftActor(CANISTER_ID_KNOWLEDGE_FOUND_NFT, {
+		agentOptions: {
+			host: getHost()
+		}
+	});
+}
+
+/**
+ * @param {any[][]} data
+ */
+export function convertArrayToObjects(data) {
+	// Handle empty or invalid input
+	if (!Array.isArray(data) || data.length === 0) {
+		return null;
+	}
+
+	// Process each credential in the array
+	const credentialObj = {};
+
+	// Process each field in the credential
+	data[0].forEach((field) => {
+		const [key, value] = field;
+
+		// Handle special case for meta field which contains a Map
+		if (key === 'meta' && value.Map) {
+			// @ts-ignore
+			credentialObj[key] = {};
+			// @ts-ignore
+			value.Map.forEach(([metaKey, metaValue]) => {
+				// @ts-ignore
+				credentialObj[key][metaKey] = extractValue(metaValue);
+			});
+		} else {
+			// @ts-ignore
+			credentialObj[key] = extractValue(value);
+		}
+	});
+
+	return credentialObj;
+}
+
+// Helper function to extract the actual value from the data structure
+/**
+ * @param {any} value
+ */
+export function extractValue(value) {
+	if (value.Text) return value.Text;
+	if (value.Blob) return value.Blob;
+	if (value.Int) return value.Int;
+	if (value.Nat) return value.Nat;
+	if (value.Float) return value.Float;
+	return value;
 }

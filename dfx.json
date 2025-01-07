@@ -6,11 +6,11 @@
       "wasm": "https://download.dfinity.systems/ic/7dee90107a88b836fc72e78993913988f4f73ca2/canisters/ic-icrc1-ledger.wasm.gz"
     },
     "backend": {
-      "dependencies": [
-        "knowledge_found_nft",
-        "arcmindvectordb"
-      ],
       "main": "src/backend/main.mo",
+      "type": "motoko"
+    },
+    "canister_creation_canister": {
+      "main": "src/canister_creation_canister/src/Main.mo",
       "type": "motoko"
     },
     "frontend": {
@@ -30,6 +30,9 @@
       "id": "rdmx6-jaaaa-aaaaa-aaadq-cai"
     },
     "knowledge_found_nft": {
+      "dependencies": [
+        "backend"
+      ],
       "declarations": {
         "node_compatibility": true
       },

@@ -2,7 +2,12 @@
   import { onMount } from "svelte";
   import logo from "../../../public/image8.png";
   import hero from "../../../public/image9.png";
-  import { createBackend, errorToText } from "../helpers/utils";
+  import {
+    convertArrayToObjects,
+    createBackend,
+    createKnowledgeFoundNft,
+    errorToText,
+  } from "../helpers/utils";
   import iclogo from "../assets/internet-computer.svg";
   import badge from "../assets/badge.png";
   import logo2 from "../assets/AN.png";
@@ -59,10 +64,7 @@
   let showQuestions = false;
   let selectedView = "resources"; // 'resources' or 'questions'
 
-  /**
-   * @type {import("../../declarations/backend/backend.did").SharedUser}
-   */
-  let user;
+  let user: any;
 
   let newResource = {
     title: "",
@@ -70,10 +72,8 @@
     url: "",
   };
 
-  /**
-   * @type {import("../store").State}
-   */
-  let storeState;
+  import { State } from "../store";
+  let storeState: State;
   store.subscribe((value) => {
     storeState = value;
   });
@@ -116,7 +116,7 @@
   /**
    * @param {string} userId
    */
-  async function getUserProfile(userId) {
+  async function getUserProfile(userId: string) {
     const backend = await createBackend();
     if (userId) {
       const response = await backend.getProfile(userId);
@@ -128,8 +128,147 @@
       user = response["ok"];
     }
   }
-
   $: getUserProfile(storeState.userId);
+
+  let claimableNfts: {
+    id: string;
+    metadata: ParsedNFTMetadata;
+  }[];
+  let loadingClaimableNfts = false;
+  async function getUserClaimableNFTs(userId: string) {
+    loadingClaimableNfts = true;
+    const backend = await createBackend();
+    const response = await backend.get_user_claimable_nfts(userId);
+    loadingClaimableNfts = false;
+    if (response["err"]) {
+      alert(`Error fetching claimable NFTs: ${errorToText(response["err"])}`);
+      return;
+    }
+    let nfts: any[] = response["ok"];
+    claimableNfts = nfts.map((item) => {
+      let nft = item.metadata;
+      let certificate: ParsedNFTMetadata = {
+        id: "",
+        userName: "",
+        issued_on: "",
+        userId: "",
+        mark: 0,
+        user: "",
+        courseTitle: "",
+        courseId: "",
+      };
+      certificate.issued_on = new Date(
+        Number(nft.issued_on) / 1000000,
+      ).toDateString();
+      certificate.courseId = nft.courseId;
+      certificate.courseTitle = nft.courseTitle;
+      certificate.userId = nft.userId;
+      certificate.userName = nft.userName;
+      certificate.mark = Number(nft.mark);
+      certificate.user = nft.user.toText();
+      return {
+        id: item.id,
+        metadata: certificate,
+      };
+    });
+  }
+  interface ParsedNFTMetadata {
+    id: string;
+    userName: string;
+    issued_on: string;
+    userId: string;
+    mark: number;
+    user: string;
+    courseTitle: string;
+    courseId: string;
+  }
+  let knowledgeFoundNFTs: ParsedNFTMetadata[] = [];
+  let loadingKnowledgeFoundNFTs = false;
+  async function getUserOwnedNFTs() {
+    if (!storeState.isAuthed) {
+      alert("Please connect your wallet to view NFTs.");
+      return;
+    }
+    const principal = storeState.principal;
+    loadingKnowledgeFoundNFTs = true;
+    const nftActor = await createKnowledgeFoundNft();
+    let token_ids = await nftActor.icrc7_tokens_of(
+      {
+        owner: storeState.principal,
+        subaccount: [],
+      },
+      [],
+      [],
+    );
+    try {
+      const result = await nftActor.icrc7_token_metadata(token_ids);
+      // @ts-ignore
+      // @ts-ignore
+      const tokens = result;
+      const data = tokens.map((item) => convertArrayToObjects(item));
+      console.log(data);
+      for (let i = 0; i < data.length; i++) {
+        let certificate: ParsedNFTMetadata = {
+          id: "",
+          userName: "",
+          issued_on: "",
+          userId: "",
+          mark: 0,
+          user: "",
+          courseTitle: "",
+          courseId: "",
+        };
+        if (!data[i]) {
+          continue;
+        }
+
+        let issued_on = data[i].issued_on;
+        certificate.id = Number(token_ids[i]).toString();
+        certificate.issued_on = issued_on
+          ? new Date(Number(issued_on) / 1000000).toDateString()
+          : "N/A";
+        certificate.courseId = data[i].courseId;
+        certificate.courseTitle = data[i].courseTitle;
+        certificate.userId = data[i].userId;
+        certificate.userName = data[i].userName;
+        certificate.mark = Number(data[i].mark);
+        let userT = data[i].user;
+        if (data[i].user?.constructor?.name == "Uint8Array") {
+          userT = Principal.fromUint8Array(userT).toText();
+        }
+
+        knowledgeFoundNFTs.push(certificate);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    loadingKnowledgeFoundNFTs = false;
+  }
+
+  // Claim nfts
+  let isClaimingNft = null;
+  async function claimNft(id: string) {
+    if (!storeState.isAuthed) {
+      alert("Please connect your wallet to view NFTs.");
+      return;
+    }
+    isClaimingNft = id;
+    if (!storeState.userId) {
+      await setUserId();
+    }
+    const response = await storeState.backendActor.claimNFTs(
+      storeState.userId,
+      id,
+    );
+    if (response["err"]) {
+      alert(`Error claiming NFT: ${errorToText(response["err"])}`);
+      return;
+    }
+    alert("NFT claimed successfully.");
+    await getUserClaimableNFTs(storeState.userId);
+    isClaimingNft = null;
+  }
+
 
   async function getTokens(principal) {
     if (!principal) {
@@ -241,31 +380,33 @@
       // Add logic to create a new resource in the backend
       isAddingResource = true;
       try {
+
+const fileInput = document.getElementById(
+  "resource-file",
+) as HTMLInputElement;
+if (fileInput.files.length > 0) {
+  const file = fileInput.files[0];
+  let pathToUploadedPdf = URL.createObjectURL(file);
+  addingToCourseKnowledgeBase = true;
+  await addPdfToCourseKnowledgebase(pathToUploadedPdf, viewingCourseId);
+}
+
         const response = await storeState.backendActor.createResource(
           viewingCourseId,
           newResource.title,
           newResource.url,
           ResourceType[newResource.type],
         );
-        isAddingResource = false;
         if (response["err"]) {
           alert(`Error creating resource: ${errorToText(response["err"])}`);
           return;
         }
 
-        const fileInput = document.getElementById(
-          "resource-file",
-        ) as HTMLInputElement;
-        if (fileInput.files.length > 0) {
-          const file = fileInput.files[0];
-          let pathToUploadedPdf = URL.createObjectURL(file);
-          addingToCourseKnowledgeBase = true;
-          await addPdfToCourseKnowledgebase(pathToUploadedPdf, viewingCourseId);
-        }
-
         alert("Resource added successfully.");
         await loadResources(); // Refresh resources
         newResource = { title: "", type: "", url: "" }; // Reset the form
+        isAddingResource = false;
+        addingToCourseKnowledgeBase = false;
       } finally {
         isAddingResource = false;
         addingToCourseKnowledgeBase = false;
@@ -397,22 +538,6 @@
   let reward2 = "Exclusive NFT Badge";
   let reward3 = "One-on-One Mentor Session";
 
-  let knowledgeFoundNFTs = [
-    {
-      course: "Course 1",
-      mark: 80,
-      date: new Date(),
-    },
-    {
-      course: "Course 2",
-      mark: 100,
-      date: new Date(),
-    },
-  ];
-
-  // Claim nfts
-  function claimNFTs() {}
-
   // Chat History Data
   let chatHistory = [
     { date: "2024-09-01", topic: "Customer Support" },
@@ -473,10 +598,20 @@
   }
 
   // Handle Tab Change in Rewards Section
-  const handleTabChange = (/** @type {string} */ tab) => {
+  const handleTabChange = async (tab: string) => {
     activeTab = tab;
-    if (tab === "redeem") {
-      getUserProfile(storeState.userId);
+    switch (tab) {
+      case "redeem":
+        await getUserProfile(storeState.userId);
+        break;
+      case "nfts":
+        await getUserOwnedNFTs();
+        break;
+      case "claim-nfts":
+        await getUserClaimableNFTs(storeState.userId);
+        break;
+      default:
+        break;
     }
   };
 
@@ -491,6 +626,8 @@
       element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
+
+  $: console.log(activeSection)
 
   /**
    * @param {string} courseId
@@ -816,6 +953,8 @@
       isSubmittingQuiz = false;
     }
   }
+
+  async function getUserNfts() {}
 
   // On Mount
   onMount(() => {
@@ -1230,7 +1369,7 @@
       <!-- Tabs Navigation -->
       <div class="flex justify-center mb-8 space-x-4">
         <button
-          on:click={() => handleTabChange("overview")}
+          on:click={async () => await handleTabChange("overview")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "overview"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1240,7 +1379,7 @@
           <i class="fas fa-info-circle mr-2"></i> Overview
         </button>
         <button
-          on:click={() => handleTabChange("tokens")}
+          on:click={async () => await handleTabChange("tokens")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "tokens"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1250,7 +1389,7 @@
           <i class="fas fa-coins mr-2"></i> Your Tokens
         </button>
         <button
-          on:click={() => handleTabChange("nfts")}
+          on:click={async () => await handleTabChange("nfts")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "nfts"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1260,7 +1399,7 @@
           <i class="fas fa-coins mr-2"></i> Your NFTs
         </button>
         <button
-          on:click={() => handleTabChange("claim-nfts")}
+          on:click={async () => await handleTabChange("claim-nfts")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "claim-nfts"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1270,7 +1409,7 @@
           <i class="fas fa-coins mr-2"></i> Claim NFTs
         </button>
         <button
-          on:click={() => handleTabChange("recent")}
+          on:click={async () => await handleTabChange("recent")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "recent"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1280,7 +1419,7 @@
           <i class="fas fa-star mr-2"></i> Recent Rewards
         </button>
         <button
-          on:click={() => handleTabChange("redeem")}
+          on:click={async () => await handleTabChange("redeem")}
           class={`px-4 py-2 text-lg font-semibold transition-colors duration-300 ${
             activeTab === "redeem"
               ? "text-[#023e8a] bg-[#e0f7fa] rounded-md shadow-md"
@@ -1363,21 +1502,41 @@
               > Knowledge Found NFTs.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {#each knowledgeFoundNFTs as nft}
-                <div
-                  class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-                >
-                  <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
-                    {nft.course}
-                  </h4>
-                  <p class="text-gray-600">
-                    Minted: {nft.date.toLocaleString()}
-                  </p>
-                  <p class="text-gray-600">
-                    Mark: {nft.mark}
-                  </p>
+              {#if loadingKnowledgeFoundNFTs}
+                <div class="text-center">
+                  <img
+                    src={spinner}
+                    alt="loading animation"
+                    class="h-12 block mx-auto mb-4"
+                  />
+                  <p class="text-gray-600">Loading NFTs...</p>
                 </div>
-              {/each}
+              {:else}
+                {#each knowledgeFoundNFTs as nft}
+                  <div
+                    class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                  >
+                    <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
+                      {nft.courseTitle}
+                    </h4>
+                    <p class="text-gray-600">
+                      Token ID: {nft.id}
+                    </p>
+                    <p class="text-gray-600">
+                      Course ID: {nft.courseId}
+                    </p>
+                    <p class="text-gray-600">
+                      Issued On: {nft.issued_on}
+                    </p>
+                    <p class="text-gray-600">
+                      Mark: {nft.mark}
+                    </p>
+                    <p class="text-gray-600">
+                      Minted: {"Yes"}
+                    </p>
+                  </div>
+                {/each}
+              {/if}
             </div>
           </section>
         {/if}
@@ -1410,24 +1569,50 @@
               <p class="block mb-2 text-gray-700">Claimable NFTs:</p>
               <p>{Number(knowledgeFoundNFTs.length)}</p>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {#each knowledgeFoundNFTs as nft}
-                  <div
-                    class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-                  >
-                    <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
-                      {nft.course}
-                    </h4>
-                    <p class="text-gray-600">Minted: False</p>
-                    <p class="text-gray-600">
-                      Earned: {nft.date.toLocaleString()}
-                    </p>
-                    <p class="text-gray-600">
-                      Mark: {nft.mark}
-                    </p>
-                  </div>
-                {/each}
-              </div>
+              {#if loadingClaimableNfts }
+                <div class="text-center">
+                  <img
+                    src={spinner}
+                    alt="loading animation"
+                    class="h-12 block mx-auto mb-4"
+                  />
+                  <p class="text-gray-600">Loading Claimable NFTs...</p>
+                </div>
+              {:else}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {#each claimableNfts as nft}
+                    <div
+                      class="bg-[#f0f4f8] p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                    >
+                      <h4 class="text-xl font-semibold text-[#0077b6] mb-2">
+                        {nft.metadata.courseTitle}
+                      </h4>
+                      <p class="text-gray-600">
+                        Course ID: {nft.metadata.courseId}
+                      </p>
+                      <p class="text-gray-600">Minted: No</p>
+                      <p class="text-gray-600">
+                        Issued On: {nft.metadata.issued_on}
+                      </p>
+                      <p class="text-gray-600">
+                        Mark: {nft.metadata.mark}
+                      </p>
+                      {#if storeState?.isAuthed}
+                        <button
+                          disabled={isClaimingNft}
+                          on:click={() => claimNft(nft.id)}
+                          type="submit"
+                          class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
+                        >
+                          {isClaimingNft === nft.id
+                            ? "Claiming..."
+                            : "Claim NFT"}
+                        </button>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              {/if}
 
               {#if !storeState?.isAuthed}
                 <div class="mb-8">
@@ -1441,14 +1626,6 @@
                     Connect Identity
                   </button>
                 </div>
-              {:else}
-                <button
-                  on:click={claimNFTs}
-                  type="submit"
-                  class="bg-[#0077b6] text-white px-6 py-3 rounded-lg hover:bg-[#005f73] transition-colors duration-300"
-                >
-                  Claim All
-                </button>
               {/if}
             </div>
           </section>
@@ -1548,7 +1725,7 @@
   <section
     id="Admin"
     class="py-16 bg-[#0f535c] text-white"
-    class:hidden={activeSection !== "Admin"}
+    class:hidden={activeSection !== "admin"}
   >
     <div class="container mx-auto space-y-8">
       {#if storeState.principal}

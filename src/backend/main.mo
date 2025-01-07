@@ -13,6 +13,7 @@ import Error "mo:base/Error";
 import Debug "mo:base/Debug";
 import { recurringTimer } = "mo:base/Timer";
 import Float "mo:base/Float";
+import ICRC7Type "mo:icrc7-mo";
 import CandyTypesLib "mo:candy_0_3_0/types";
 
 import Utils "./Utils";
@@ -49,6 +50,7 @@ shared ({ caller }) actor class Backend() = this {
   type MemoryVector = Types.MemoryVector;
   type KnowledgeFoundNFT = Types.KnowledgeFoundNFT;
   type NFTMetadata = Types.NFTMetadata;
+  type ClaimableNFT = Types.ClaimableNFT;
 
   stable let members = Map.new<Text, User>();
   stable let courses = Map.new<Text, Course>();
@@ -485,26 +487,35 @@ shared ({ caller }) actor class Backend() = this {
     let courseId = await Utils.uuid();
 
     // Create knowledge base canister
-    let knowledgebase = await createKnowledgeBaseCanister();
+    let result = try {
+      #ok(await createKnowledgeBaseCanister());
+    } catch e #err(e);
 
-    switch (knowledgebase) {
-      case (#ok(info)) {
-        let course = {
-          id = courseId;
-          title = title;
-          summary = summary;
-          resources = resources;
-          questions = questions;
-          knowledgebase = info;
+    switch (result) {
+      case (#ok(knowledgebase)) {
+        switch (knowledgebase) {
+          case (#ok(info)) {
+            let course = {
+              id = courseId;
+              title = title;
+              summary = summary;
+              resources = resources;
+              questions = questions;
+              knowledgebase = info;
+            };
+            Map.set(courses, thash, courseId, course);
+            #ok(courseId);
+          };
+          case (#err(error)) {
+            return #err(error);
+          };
         };
-
-        Map.set(courses, thash, courseId, course);
-        #ok(courseId);
       };
-      case (#err(error)) {
-        return #err(error);
+      case (#err(_)) {
+        return #err(#Other("Error creating course knowledgebase"));
       };
     };
+
   };
 
   public func getCourseKnowledgebase(courseId : Text) : async Result<Types.CanisterInfo, ApiError> {
@@ -790,6 +801,7 @@ shared ({ caller }) actor class Backend() = this {
                   user = caller;
                   userName = member.fullname;
                   issued_on = Time.now();
+                  mark = correctCount;
                 };
 
                 if (not Principal.isAnonymous(caller)) {
@@ -862,7 +874,7 @@ shared ({ caller }) actor class Backend() = this {
                     {
                       immutable = false;
                       name = "mark";
-                      value = #Nat(correctCount);
+                      value = #Nat(metadata.mark);
                     },
                     {
                       immutable = false;
@@ -885,34 +897,32 @@ shared ({ caller }) actor class Backend() = this {
                     case (#Ok(tokId)) {
                       switch (tokId) {
                         case (null) {
-                          return #err("Failed to mint Knowledge Found NFT");
+                          return #err(#Other("Failed to mint Knowledge Found NFT"));
                         };
-                        case (?tokenId) {
-                          return #ok(tokenCounter);
-                        };
+                        case (?tokenId) {};
                       };
                     };
                     case (#Err(err)) {
                       switch (err) {
                         case (#NonExistingTokenId) {
-                          return #err("Non existing token id");
+                          return #err(#Other("Non existing token id"));
                         };
                         case (#TokenExists) {
-                          return #err("Token already exists");
+                          return #err(#Other("Token already exists"));
                         };
                         case (#TooOld) {
-                          return #err("Transaction is too old");
+                          return #err(#Other("Transaction is too old"));
                         };
                         case (#GenericError(e)) {
-                          return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                          return #err(#Other("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message));
                         };
                         case (#CreatedInFuture(e)) {
-                          return #err("Created in future: " # debug_show (e.ledger_time));
+                          return #err(#Other("Created in future: " # debug_show (e.ledger_time)));
                         };
                       };
                     };
                     case (#GenericError(e)) {
-                      return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                      return #err(#Other("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message));
                     };
                   };
                 } else {
@@ -1032,20 +1042,33 @@ shared ({ caller }) actor class Backend() = this {
     };
   };
 
-  public func get_user_claimable_nfts(userId : Text) : async Result<[NFTMetadata], Text> {
+  public func get_user_claimable_nfts(userId : Text) : async Result<[ClaimableNFT], Text> {
     let nfts = Map.get(user_to_claimable_nfts, thash, userId);
     switch (nfts) {
       case (null) {
         #ok([]);
       };
       case (?t) {
-        #ok(Iter.toArray(Map.vals(t)));
+        let claimableNfts = Vector.new<ClaimableNFT>();
+        for (k in Map.keys(t)) {
+          switch (Map.get(t, thash, k)) {
+            case (null) {};
+            case (?metadata) {
+              let claimableNft : ClaimableNFT = {
+                id = k;
+                metadata = metadata;
+              };
+              Vector.add(claimableNfts, claimableNft);
+            };
+          };
+        };
+        #ok(Vector.toArray(claimableNfts));
       };
     };
   };
 
   // Claim NFTs
-  public shared ({ caller }) func claimNFTs(userId : Text, claimableId: Text) : async Result<Text, ApiError> {
+  public shared ({ caller }) func claimNFTs(userId : Text, claimableId : Text) : async Result<Text, ApiError> {
     if (Principal.isAnonymous(caller)) {
       return #err(#Unauthorized);
     };
@@ -1122,7 +1145,7 @@ shared ({ caller }) actor class Backend() = this {
                       case (#Ok(tokId)) {
                         switch (tokId) {
                           case (null) {
-                            return #err("Failed to mint Knowledge Found NFT");
+                            return #err(#Other("Failed to mint Knowledge Found NFT"));
                           };
                           case (?tokenId) {
                             Map.delete(claimableNfts, thash, claimableId);
@@ -1134,30 +1157,30 @@ shared ({ caller }) actor class Backend() = this {
                       case (#Err(err)) {
                         switch (err) {
                           case (#NonExistingTokenId) {
-                            return #err("Non existing token id");
+                            return #err(#Other("Non existing token id"));
                           };
                           case (#TokenExists) {
-                            return #err("Token already exists");
+                            return #err(#Other("Token already exists"));
                           };
                           case (#TooOld) {
-                            return #err("Transaction is too old");
+                            return #err(#Other("Transaction is too old"));
                           };
                           case (#GenericError(e)) {
-                            return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                            return #err(#Other("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message));
                           };
                           case (#CreatedInFuture(e)) {
-                            return #err("Created in future: " # debug_show (e.ledger_time));
+                            return #err(#Other("Created in future: " # debug_show (e.ledger_time)));
                           };
                         };
                       };
                       case (#GenericError(e)) {
-                        return #err("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message);
+                        return #err(#Other("Generic error: " # debug_show (e.error_code) # ", Message: " # e.message));
                       };
                     };
                   };
-                }
-              }
-            }
+                };
+              };
+            };
           };
         };
       };
@@ -2014,32 +2037,37 @@ shared ({ caller }) actor class Backend() = this {
   ignore recurringTimer<system>(#seconds 5, pollRuns);
 
   stable var CANISTER_CREATION_CANISTER_ID : Text = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
-  let canisterCreationCanister = actor (CANISTER_CREATION_CANISTER_ID) : actor {
-    amiController() : async Types.AuthRecordResult;
-    createCanister : (configurationInput : Types.CanisterCreationConfiguration) -> async Types.CanisterCreationResult;
-  };
+  var canisterCreationCanister : Types.CanisterCreator = actor (CANISTER_CREATION_CANISTER_ID);
   public shared (msg) func setCanisterCreationCanisterId(_canister_creation_canister_id : Text) : async Types.AuthRecordResult {
     if (not _isAllowed(caller)) return #err(#Unauthorized);
     CANISTER_CREATION_CANISTER_ID := _canister_creation_canister_id;
+    canisterCreationCanister := actor (CANISTER_CREATION_CANISTER_ID);
     let authRecord = {
       auth = "You set the creation canister for this canister.";
     };
     return #ok(authRecord);
   };
 
+  public shared ({ caller }) func addEmbedding(canisterId: Text, content : Text, embedding: [Float]) : async Result<Text, ApiError> {
+    let vdb : Types.ArcMind = actor (canisterId);
+    #ok(await vdb.add({ content = content; embeddings = embedding }));
+  };
+
   // Course Knowledge base
   private func createKnowledgeBaseCanister() : async Types.CourseCanisterCreationResult {
     let canisterConfiguration : Types.CanisterCreationConfiguration = {
-      canisterType : Types.CanisterType = #Knowledgebase;
-      owner : Principal = Principal.fromActor(this);
+      canisterType = #Knowledgebase;
+      owner = Principal.fromActor(this);
     };
     let createCanisterResult : Types.CanisterCreationResult = await canisterCreationCanister.createCanister(canisterConfiguration);
+    Debug.print("Create canister result");
+    Debug.print(debug_show (createCanisterResult));
 
     switch (createCanisterResult) {
-      case (#err(createCanisterError)) {
-        return #err(createCanisterError);
+      case (#Err(createCanisterError)) {
+        return #err(#Other(debug_show (createCanisterError)));
       };
-      case (#ok(createCanisterSuccess)) {
+      case (#Ok(createCanisterSuccess)) {
         // Create new entry for user
         let newCanisterInfo : Types.CanisterInfo = {
           canisterType : Types.CanisterType = #Knowledgebase;

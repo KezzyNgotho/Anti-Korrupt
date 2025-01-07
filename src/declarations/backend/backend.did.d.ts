@@ -18,9 +18,11 @@ export type AuthRecordResult = { 'ok' : AuthRecord } |
 export interface Backend {
   'addAcls' : ActorMethod<[Principal], undefined>,
   'addAclsText' : ActorMethod<[string], undefined>,
+  'addEmbedding' : ActorMethod<[string, string, Array<number>], Result>,
   'addQuestion' : ActorMethod<[string, Question], Result>,
-  'changeApiKey' : ActorMethod<[string], Result_1>,
-  'changeOwner' : ActorMethod<[string], Result_1>,
+  'changeApiKey' : ActorMethod<[string], Result_2>,
+  'changeOwner' : ActorMethod<[string], Result_2>,
+  'claimNFTs' : ActorMethod<[string, string], Result>,
   'claimTokens' : ActorMethod<[string], Result>,
   'connectUserToPrincipal' : ActorMethod<[string], Result>,
   'createCourse' : ActorMethod<[string, string], Result>,
@@ -29,31 +31,34 @@ export interface Backend {
     Result
   >,
   'enrollCourse' : ActorMethod<[string, string], Result>,
-  'generateQuestionsForCourse' : ActorMethod<[string], Result_2>,
+  'generateQuestionsForCourse' : ActorMethod<[string], Result_3>,
   'generateRandomNumber' : ActorMethod<[bigint], bigint>,
   'getAcls' : ActorMethod<[], Array<Principal>>,
-  'getCourseKnowledgebase' : ActorMethod<[string], Result_9>,
-  'getCourseQuestions' : ActorMethod<[string], Result_5>,
-  'getCourseResources' : ActorMethod<[string], Result_8>,
+  'getCourseKnowledgebase' : ActorMethod<[string], Result_11>,
+  'getCourseQuestions' : ActorMethod<[string], Result_7>,
+  'getCourseResources' : ActorMethod<[string], Result_10>,
   'getOwner' : ActorMethod<[], Principal>,
-  'getProfile' : ActorMethod<[string], Result_7>,
-  'getRandomCourseQuestions' : ActorMethod<[string, bigint], Result_5>,
-  'getRunMessage' : ActorMethod<[string, string], Result_6>,
-  'getRunQuestions' : ActorMethod<[string], Result_5>,
-  'getRunStatus' : ActorMethod<[string], Result_4>,
+  'getProfile' : ActorMethod<[string], Result_9>,
+  'getRandomCourseQuestions' : ActorMethod<[string, bigint], Result_7>,
+  'getRunMessage' : ActorMethod<[string, string], Result_8>,
+  'getRunQuestions' : ActorMethod<[string], Result_7>,
+  'getRunStatus' : ActorMethod<[string], Result_6>,
   'getRunsInQueue' : ActorMethod<[], Array<SharedThreadRun>>,
-  'getUserEnrolledCourse' : ActorMethod<[string, string], Result_3>,
+  'getUserEnrolledCourse' : ActorMethod<[string, string], Result_5>,
   'get_icrc1_token_canister_id' : ActorMethod<[], string>,
+  'get_nft_canister_id' : ActorMethod<[], string>,
+  'get_user_claimable_nfts' : ActorMethod<[string], Result_4>,
   'listCourses' : ActorMethod<[], Array<SharedCourse>>,
   'loginOrRegiser' : ActorMethod<[string], Result>,
-  'removeAcls' : ActorMethod<[Principal], Result_1>,
-  'removeQuestion' : ActorMethod<[string, string], Result_1>,
-  'removeResource' : ActorMethod<[string, string], Result_1>,
-  'sendMessage' : ActorMethod<[string, string, string, string], Result_2>,
-  'setAssistantId' : ActorMethod<[string], Result_1>,
+  'removeAcls' : ActorMethod<[Principal], Result_2>,
+  'removeQuestion' : ActorMethod<[string, string], Result_2>,
+  'removeResource' : ActorMethod<[string, string], Result_2>,
+  'sendMessage' : ActorMethod<[string, string, string, string], Result_3>,
+  'setAssistantId' : ActorMethod<[string], Result_2>,
   'setCanisterCreationCanisterId' : ActorMethod<[string], AuthRecordResult>,
-  'setRunProcess' : ActorMethod<[string, boolean], Result_1>,
-  'set_icrc1_token_canister' : ActorMethod<[Principal], Result_1>,
+  'setRunProcess' : ActorMethod<[string, boolean], Result_2>,
+  'set_icrc1_token_canister' : ActorMethod<[Principal], Result_2>,
+  'set_nft_canister' : ActorMethod<[string], Result_1>,
   'submitQuestionsAttempt' : ActorMethod<
     [string, Array<SubmittedAnswer>, string],
     Result
@@ -72,6 +77,7 @@ export interface CanisterInfo {
   'canisterAddress' : string,
 }
 export type CanisterType = { 'Knowledgebase' : null };
+export interface ClaimableNFT { 'id' : string, 'metadata' : NFTMetadata }
 export interface HttpHeader { 'value' : string, 'name' : string }
 export interface HttpResponsePayload {
   'status' : bigint,
@@ -89,6 +95,15 @@ export interface Message__1 {
   'content' : string,
   'role' : MessageType,
   'runId' : [] | [string],
+}
+export interface NFTMetadata {
+  'userName' : string,
+  'issued_on' : Time,
+  'userId' : string,
+  'mark' : bigint,
+  'user' : Principal,
+  'courseTitle' : string,
+  'courseId' : string,
 }
 export interface Question {
   'id' : string,
@@ -114,22 +129,26 @@ export type ResourceType__1 = { 'Book' : null } |
 export type Result = { 'ok' : string } |
   { 'err' : ApiError };
 export type Result_1 = { 'ok' : null } |
+  { 'err' : string };
+export type Result_10 = { 'ok' : Array<Resource> } |
   { 'err' : ApiError };
-export type Result_2 = { 'ok' : SendMessageStatus } |
+export type Result_11 = { 'ok' : CanisterInfo } |
+  { 'err' : ApiError };
+export type Result_2 = { 'ok' : null } |
+  { 'err' : ApiError };
+export type Result_3 = { 'ok' : SendMessageStatus } |
   { 'err' : SendMessageStatus };
-export type Result_3 = { 'ok' : SharedEnrolledCourse } |
+export type Result_4 = { 'ok' : Array<ClaimableNFT> } |
+  { 'err' : string };
+export type Result_5 = { 'ok' : SharedEnrolledCourse } |
   { 'err' : ApiError };
-export type Result_4 = { 'ok' : RunStatus__1 } |
+export type Result_6 = { 'ok' : RunStatus__1 } |
   { 'err' : ApiError };
-export type Result_5 = { 'ok' : Array<Question> } |
+export type Result_7 = { 'ok' : Array<Question> } |
   { 'err' : ApiError };
-export type Result_6 = { 'ok' : Message__1 } |
+export type Result_8 = { 'ok' : Message__1 } |
   { 'err' : ApiError };
-export type Result_7 = { 'ok' : SharedUser } |
-  { 'err' : ApiError };
-export type Result_8 = { 'ok' : Array<Resource> } |
-  { 'err' : ApiError };
-export type Result_9 = { 'ok' : CanisterInfo } |
+export type Result_9 = { 'ok' : SharedUser } |
   { 'err' : ApiError };
 export type RunStatus = { 'Failed' : null } |
   { 'Cancelled' : null } |

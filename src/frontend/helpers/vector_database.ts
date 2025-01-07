@@ -54,11 +54,14 @@ export const addPdfToCourseKnowledgebase = async (pathToPdf: string, courseId: s
   }
   if (!embeddingsModel) {
     embeddingsModel = new TensorFlowEmbeddings();
+    console.log("Created embedding class")
   }
   const start = performance.now() / 1000;
 
   try {
+    console.log("Getting data entries")
     const existingDataEntries = await getDataEntries(pathToPdf);
+    console.log("Got data entries", existingDataEntries.length)
     const textsToEmbed = existingDataEntries.map((dataEntry) =>
       JSON.stringify(dataEntry),
     );
@@ -68,6 +71,7 @@ export const addPdfToCourseKnowledgebase = async (pathToPdf: string, courseId: s
       promises.push(embedAndAddChunk(text, embeddingsModel, courseId));
     }
 
+    console.log("Fullfilling embed and chunk promises");
     const results = await Promise.allSettled(promises);
     results.forEach((result) => {
       if (result.status === "fulfilled") {
@@ -87,14 +91,15 @@ export const addPdfToCourseKnowledgebase = async (pathToPdf: string, courseId: s
 };
 
 const embedAndAddChunk = async (text: string, embeddingsModel: TensorFlowEmbeddings, courseId: string) => {
-  const courseKnowledgebaseCanister =
-  await store.getActorForCourseKnowledgebaseCanister(courseId);
+  console.log("Getting course knowledge base canister")
+  const courseKnowledgebaseCanister = await store.getActorForCourseKnowledgebaseCanister(courseId);
+  console.log("Got course knowledge base canister", courseKnowledgebaseCanister)
   // Generate embeddings for a chunk of text
   return embeddingsModel.embedQuery(text).then((embeddingResult) => {
     // and add the chunk to the vector database
     return courseKnowledgebaseCanister.add({
       content: text,
       embeddings: embeddingResult,
-    });
+    })
   });
 };

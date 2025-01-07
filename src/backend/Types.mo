@@ -8,6 +8,7 @@ import Vector "mo:vector";
 import JSON "mo:json.mo";
 import Result "mo:base/Result";
 import ICRC7Type "mo:icrc7-mo";
+import Float "mo:base/Float";
 
 module {
   public type Vector<T> = Vector.Vector<T>;
@@ -296,12 +297,9 @@ module {
 
   public type AuthRecordResult = Result<AuthRecord, ApiError>;
 
-  public type CanisterCreationConfigurationInput = {
-    canisterType : CanisterType;
-  };
-
   public type CanisterCreationConfiguration = {
     canisterType : CanisterType;
+    owner: Principal;
   };
 
   public type CanisterCreationRecord = {
@@ -309,7 +307,23 @@ module {
     newCanisterId : Text;
   };
 
-  public type CanisterCreationResult = Result<CanisterCreationRecord, ApiError>;
+  public type StatusCode = Nat16;
+
+  
+
+  public type CCResult<S, E> = {
+      #Ok : S;
+      #Err : E;
+  };
+  public type CCApiError = {
+      #Unauthorized;
+      #InvalidId;
+      #ZeroAddress;
+      #Other : Text;
+      #StatusCode : StatusCode;
+  };
+
+  public type CanisterCreationResult = CCResult<CanisterCreationRecord, CCApiError>;
   public type CourseCanisterCreationResult = Result<CanisterInfo, ApiError>;
 
   public type CertificateType = {
@@ -339,8 +353,27 @@ module {
     mark : Nat;
     issued_on : Time.Time;
   };
+  
+  public type ClaimableNFT = {
+    id : Text;
+    metadata : NFTMetadata;
+  };
 
   public type KnowledgeFoundNFT = actor {
     icrcX_mint : shared query (ICRC7Type.SetNFTRequest) -> async [ICRC7Type.SetNFTResult];
   };
+
+  public type CanisterCreator = actor {
+    amiController() : async AuthRecordResult;
+    createCanister : (configurationInput : CanisterCreationConfiguration) -> async CanisterCreationResult;
+  };
+
+  public type VecDoc = {
+    content : Text;
+    embeddings : [Float];
+  };
+  public type ArcMind = actor {
+    add : (input : VecDoc) -> async Text;
+  };
+  
 };
