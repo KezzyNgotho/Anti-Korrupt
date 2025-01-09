@@ -789,10 +789,10 @@ shared ({ caller }) actor class Backend() = this {
                   };
                 };
 
-                // let previousValue = Vector.get(member.enrolledCourses, enrolledCourseIndex);
-                // if (previousValue.completed) {
-                //   return #err(#Other("You have already completed this course before"));
-                // };
+                let previousValue = Vector.get(member.enrolledCourses, enrolledCourseIndex);
+                if (previousValue.completed) {
+                  return #err(#Other("You have already completed this course before"));
+                };
 
                 let metadata : NFTMetadata = {
                   courseId = c.id;

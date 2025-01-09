@@ -146,10 +146,11 @@ dfx canister call canister_creation_canister setMasterCanisterId "(\"$BACKEND_CA
 CANISTER_CREATION_CANISTER=$(dfx canister id canister_creation_canister)
 dfx canister call backend setCanisterCreationCanisterId "(\"$CANISTER_CREATION_CANISTER\")"
 
-# Create python virtual environment if not already created
 cd src/canister_creation_canister
+# Create python virtual environment if not already created
 python3 -m venv venv
 source venv/bin/activate
+# install dependencies
 pip install -r requirements.txt
 
 python3 -m scripts.upload_knowledgebase_canister --network local --canister canister_creation_canister --wasm files/arcmindvectordb.wasm --candid src/declarations/canister_creation_canister/canister_creation_canister.did

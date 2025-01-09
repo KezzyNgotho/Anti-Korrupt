@@ -27,7 +27,10 @@
     M_DECIMALS,
     M_SYMBOL,
   } from "../helpers/ledger";
-  import { addPdfToCourseKnowledgebase, searchCourseKnowledgebase } from "../helpers/vector_database";
+  import {
+    addPdfToCourseKnowledgebase,
+    searchCourseKnowledgebase,
+  } from "../helpers/vector_database";
 
   // State Variables
 
@@ -73,6 +76,8 @@
   };
 
   import { State } from "../store";
+    import { AuthClient } from "@dfinity/auth-client";
+    import { createBackendActor } from "../helpers/auth";
   let storeState: State;
   store.subscribe((value) => {
     storeState = value;
@@ -133,9 +138,12 @@
   let claimableNfts: {
     id: string;
     metadata: ParsedNFTMetadata;
-  }[];
+  }[] = [];
   let loadingClaimableNfts = false;
   async function getUserClaimableNFTs(userId: string) {
+    if (!storeState.userId) {
+      await setUserId();
+    }
     loadingClaimableNfts = true;
     const backend = await createBackend();
     const response = await backend.get_user_claimable_nfts(userId);
@@ -207,6 +215,7 @@
       const tokens = result;
       const data = tokens.map((item) => convertArrayToObjects(item));
       console.log(data);
+      knowledgeFoundNFTs = [];
       for (let i = 0; i < data.length; i++) {
         let certificate: ParsedNFTMetadata = {
           id: "",
@@ -248,27 +257,33 @@
   // Claim nfts
   let isClaimingNft = null;
   async function claimNft(id: string) {
-    if (!storeState.isAuthed) {
+    let authClient = await AuthClient.create();
+    if ((await authClient.isAuthenticated()) === false) {
       alert("Please connect your wallet to view NFTs.");
       return;
     }
+    const identity = authClient.getIdentity();
+    console.log("Claiming NFT", identity);
+    const backendActor = await createBackendActor(identity);
     isClaimingNft = id;
+    console.log("storeState.userId", storeState.userId)
     if (!storeState.userId) {
       await setUserId();
     }
-    const response = await storeState.backendActor.claimNFTs(
+    console.log(await backendActor.connectUserToPrincipal(storeState.userId));
+    const response = await backendActor.claimNFTs(
       storeState.userId,
       id,
     );
     if (response["err"]) {
       alert(`Error claiming NFT: ${errorToText(response["err"])}`);
+      isClaimingNft = null;
       return;
     }
     alert("NFT claimed successfully.");
     await getUserClaimableNFTs(storeState.userId);
     isClaimingNft = null;
   }
-
 
   async function getTokens(principal) {
     if (!principal) {
@@ -380,16 +395,15 @@
       // Add logic to create a new resource in the backend
       isAddingResource = true;
       try {
-
-const fileInput = document.getElementById(
-  "resource-file",
-) as HTMLInputElement;
-if (fileInput.files.length > 0) {
-  const file = fileInput.files[0];
-  let pathToUploadedPdf = URL.createObjectURL(file);
-  addingToCourseKnowledgeBase = true;
-  await addPdfToCourseKnowledgebase(pathToUploadedPdf, viewingCourseId);
-}
+        const fileInput = document.getElementById(
+          "resource-file",
+        ) as HTMLInputElement;
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          let pathToUploadedPdf = URL.createObjectURL(file);
+          addingToCourseKnowledgeBase = true;
+          await addPdfToCourseKnowledgebase(pathToUploadedPdf, viewingCourseId);
+        }
 
         const response = await storeState.backendActor.createResource(
           viewingCourseId,
@@ -610,6 +624,9 @@ if (fileInput.files.length > 0) {
       case "claim-nfts":
         await getUserClaimableNFTs(storeState.userId);
         break;
+      case "tokens":
+        await getTokens(storeState.principal);
+        break;
       default:
         break;
     }
@@ -627,7 +644,7 @@ if (fileInput.files.length > 0) {
     }
   }
 
-  $: console.log(activeSection)
+  $: console.log(activeSection);
 
   /**
    * @param {string} courseId
@@ -699,7 +716,12 @@ if (fileInput.files.length > 0) {
     try {
       sendState = "Sending";
       isSending = true;
-      const response = await backend.sendMessage(threadId, message, context, userId);
+      const response = await backend.sendMessage(
+        threadId,
+        message,
+        context,
+        userId,
+      );
       console.log("sendThreadMessage", response);
       if (response["ok"].Completed) {
         sendState = "Thinking";
@@ -751,9 +773,12 @@ if (fileInput.files.length > 0) {
         { content: messageText, runId: [""], role: { User: null } },
       ];
 
-      console.log("Searching course knowledge base")
-      let context = await searchCourseKnowledgebase(enrolledCourse.id, messageText)
-      console.log("Extra context:", context)
+      console.log("Searching course knowledge base");
+      let context = await searchCourseKnowledgebase(
+        enrolledCourse.id,
+        messageText,
+      );
+      console.log("Extra context:", context);
 
       await sendThreadMessage(
         enrolledCourse.threadId,
@@ -1573,9 +1598,9 @@ if (fileInput.files.length > 0) {
             <!-- Redemption Form -->
             <div class="space-y-6">
               <p class="block mb-2 text-gray-700">Claimable NFTs:</p>
-              <p>{Number(knowledgeFoundNFTs.length)}</p>
+              <p>{claimableNfts.length}</p>
 
-              {#if loadingClaimableNfts }
+              {#if loadingClaimableNfts}
                 <div class="text-center">
                   <img
                     src={spinner}
